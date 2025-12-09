@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>The Tutor — Grade 9 AI Tutor</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="appRoot" role="application" aria-label="Grade 9 AI Tutor" style="display:none">
+    <aside class="sidebar" aria-label="Sidebar" role="region">
+      <div class="section-title">Language</div>
+      <div class="lang-toggle" role="tablist" aria-label="Language" id="langToggle">
+        <button class="select" data-lang="English" aria-selected="true">English</button>
+        <button class="select" data-lang="Sinhala">සිංහල</button>
+      </div>
+
+      <div class="section-title">Conversation History</div>
+      <div class="history-list" id="historyList" role="list" tabindex="0" aria-label="Conversation history"></div>
+
+      <div class="sidebar-footer" role="contentinfo">
+        <button id="newChat" class="icon-btn btn-primary" aria-label="New chat">＋ New Chat</button>
+        <button id="clearAll" class="icon-btn btn-clear" aria-label="Clear chats">
+          <span class="clear-label">Clear</span>
+          <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 3v1H4v2h16V4h-5V3H9zm2 5v9h2V8h-2zm4 0v9h2V8h-2zM7 8v9h2V8H7z" />
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <header class="app-header" role="banner">
+      <div class="brand">
+        <div class="logo">G9</div>
+        <div>
+          <h1 class="brand-title gradient-text">The Tutor</h1>
+          <div class="subtitle">AI Agent made for tutoring Grade 9 students</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="toggleSidebar" class="icon-btn sidebar-toggle" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="true">☰</button>
+
+        <label for="subjectDropdown" class="sr">Subject</label>
+        <select id="subjectDropdown" class="select" aria-label="Select Subject">
+          <option>General</option>
+          <option>Math</option>
+          <option>Science</option>
+          <option>History</option>
+          <option>English</option>
+          <option>Sinhala</option>
+        </select>
+
+        <label for="themeSelect" class="sr">Theme</label>
+        <select id="themeSelect" class="select" aria-label="Select Theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <button id="logoutBtn" class="icon-btn btn-clear" aria-label="Log out">Logout</button>
+      </div>
+    </header>
+
+    <main class="chat" role="main">
+      <div class="chat-header">
+        <div>
+          <div id="chatTitle" class="chat-title">Welcome</div>
+          <div id="chatSubtitle" class="chat-subtitle">Select a subject and ask anything. Choose language to get answers in Sinhala or English.</div>
+        </div>
+        <div class="meta">
+          <div id="currentSubject" class="muted">Subject: General</div>
+        </div>
+      </div>
+
+      <div class="messages" id="messages" role="log" aria-live="polite"></div>
+
+      <div class="composer" role="region" aria-label="Message composer">
+        <input id="inputBox" class="input" placeholder="Ask me anything..." aria-label="Message input" />
+        <button id="micBtn" class="icon-btn" aria-label="Start speech input">🎤</button>
+        <button id="sendBtn" class="send" aria-label="Send message">➤</button>
+      </div>
+    </main>
+
+  </div>
+
+  <div class="toast-wrap" id="toasts" aria-live="assertive" aria-atomic="true"></div>
+
+  <!-- Firebase auth gate -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script>
+    (function(){
+      const firebaseConfig = {
+        apiKey: "AIzaSyAcsiGSQdTK4IokTpphDkphvQ7QbcndvZA",
+        authDomain: "g9-tutor.firebaseapp.com",
+        projectId: "g9-tutor",
+        storageBucket: "g9-tutor.firebasestorage.app",
+        messagingSenderId: "141457677515",
+        appId: "1:141457677515:web:62d2b0e50899fc218f0f4e",
+        measurementId: "G-BNLE95KJF8"
+      };
+      try { 
+        if (!firebase.apps || !firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+          // Configure auth settings for localhost and production
+          firebase.auth().settings.appVerificationDisabledForTesting = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        }
+      } catch(e){
+        console.error('Firebase initialization error:', e);
+      }
+      const auth = firebase.auth();
+      auth.onAuthStateChanged(function(user){
+        if(user){
+          var app = document.getElementById('appRoot'); 
+          if(app) {
+            app.style.display='';
+            console.log('User authenticated:', user.email || user.displayName);
+          }
+        } else {
+          console.log('No authenticated user, redirecting to login');
+          window.location.href = 'login.html';
+        }
+      });
+    })();
+  </script>
+
+  <script src="script.js"></script>
+  <script>
+    (function(){
+      var btn = document.getElementById('logoutBtn');
+      if(btn && window.firebase && firebase.auth){
+        btn.addEventListener('click', async function(){
+          try{
+            await firebase.auth().signOut();
+            window.location.href = 'login.html';
+          }catch(e){
+            alert(e && e.message ? e.message : 'Logout failed');
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

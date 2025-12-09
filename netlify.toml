@@ -1,0 +1,29 @@
+[build]
+  publish = "."
+  command = ""
+
+# API redirect to PythonAnywhere backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://yourusername.pythonanywhere.com/api/:splat"
+  status = 200
+
+# Basic headers for HTML/CSS/JS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self' https://www.gstatic.com; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*; frame-ancestors 'self';"
+
+# Cache static assets
+[[headers]]
+  for = "/**/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/**/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
