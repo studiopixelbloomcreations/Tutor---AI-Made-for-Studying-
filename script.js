@@ -25,10 +25,11 @@
   applyDeviceClass();
   window.addEventListener('resize', applyDeviceClass);
 
-  // Backend base - auto-detect environment
-  const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
-    : ''; // Use relative paths for Netlify (will be redirected to backend)
+  // Backend base per start.sh: backend runs on port 8000; frontend runs on a different port (e.g., 5000)
+  // Build API base from current host, pinning port 8000. Use current protocol to avoid mixed-content blocks.
+  const API_PROTOCOL = window.location.protocol; // 'http:' or 'https:'
+  const API_HOST = window.location.hostname;     // host only
+  const API_BASE = `${API_PROTOCOL}//${API_HOST}:8000`;
 
   // restore state
   let state={
@@ -60,7 +61,7 @@
 
   // Chat persistence
   function saveChats(){ localStorage.setItem('g9_chats', JSON.stringify(state.chats)); localStorage.setItem('g9_active', state.active); }
-  function createChat(title){ const id='c_'+Date.now(); const chat={id,title:title||'New Chat',messages:[],subject:state.subject,language:state.language,created:Date.now()}; state.chats.unshift(chat); state.active=chat.id; saveChats(); renderHistory(); renderActiveChat(); }
+  function createChat(title){ const id='c_'+Date.now(); const chat={id,title:title||'',messages:[],subject:state.subject,language:state.language,created:Date.now()}; state.chats.unshift(chat); state.active=chat.id; saveChats(); renderHistory(); renderActiveChat(); }
   function clearAll(){ state.chats=[]; state.active=null; saveChats(); renderHistory(); renderActiveChat(); }
 
   function renderHistory(){ historyList.innerHTML=''; if(state.chats.length===0){ const p=document.createElement('div'); p.className='history-item'; p.textContent='No conversations yet.'; historyList.appendChild(p); return; } state.chats.forEach(c=>{ const el=document.createElement('div'); el.className='history-item'; el.tabIndex=0; el.textContent=c.title; el.onclick=()=>{ state.active=c.id; saveChats(); renderHistory(); renderActiveChat(); }; if(state.active===c.id) el.setAttribute('aria-selected','true'); historyList.appendChild(el); }); }
@@ -83,7 +84,7 @@
 
   async function generateTitle(text){ try{ const res=await fetch(`${API_BASE}/generate_title`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text})}); const data=await res.json(); if(data && data.title) return data.title.replace(/["'`\n\r]+/g,'').slice(0,48); }catch(e){} return text.slice(0,40); }
 
-  async function sendMessage(){ const text=inputBox.value.trim(); if(!text) return; let chat=state.chats.find(c=>c.id===state.active); if(!chat){ createChat('New Chat'); chat=state.chats[0]; }
+  async function sendMessage(){ const text=inputBox.value.trim(); if(!text) return; let chat=state.chats.find(c=>c.id===state.active); if(!chat){ createChat(); chat=state.chats[0]; }
     if(chat.messages.length===0){ const t=await generateTitle(text); chat.title=t; saveChats(); renderHistory(); renderActiveChat(); }
     const langTag = state.language==='Sinhala' ? '[සිංහල]' : '[English]'; chat.messages.push({role:'user',content:langTag+' '+text}); appendMessage('user',langTag+' '+text); saveChats(); inputBox.value=''; chat.messages.push({role:'ai',content:'Thinking…'}); appendMessage('ai','Thinking…'); saveChats(); renderHistory();
 
@@ -106,8 +107,8 @@
   applySidebar();
 
   // Events
-  sendBtn.onclick=sendMessage; inputBox.addEventListener('keydown',(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }); newChatBtn.onclick=()=>{ createChat('New Chat'); inputBox.focus(); }; clearAllBtn.onclick=()=>{ if(confirm('Clear all conversations?')){ clearAll(); toast('All conversations cleared'); } };
+  sendBtn.onclick=sendMessage; inputBox.addEventListener('keydown',(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }); newChatBtn.onclick=()=>{ state.active=null; saveChats(); renderActiveChat(); inputBox.focus(); toast('New conversation started - ask your first question!'); }; clearAllBtn.onclick=()=>{ if(confirm('Clear all conversations?')){ clearAll(); toast('All conversations cleared'); } };
 
   // init
-  renderHistory(); renderActiveChat(); if(!state.active && state.chats.length===0) createChat('New Chat');
+  renderHistory(); renderActiveChat();
 })();

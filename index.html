@@ -8,9 +8,31 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- SVG glass distortion filter -->
+  <svg style="display: none">
+    <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+      <feTurbulence type="fractalNoise" baseFrequency="0.01 0.01" numOctaves="1" seed="5" result="turbulence" />
+      <feComponentTransfer in="turbulence" result="mapped">
+        <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
+        <feFuncG type="gamma" amplitude="0" exponent="1" offset="0" />
+        <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5" />
+      </feComponentTransfer>
+      <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
+      <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lighting-color="white" result="specLight">
+        <fePointLight x="-200" y="-200" z="300" />
+      </feSpecularLighting>
+      <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
+      <feDisplacementMap in="SourceGraphic" in2="softMap" scale="150" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
   <div class="app" id="appRoot" role="application" aria-label="Grade 9 AI Tutor" style="display:none">
     <aside class="sidebar" aria-label="Sidebar" role="region">
-      <div class="section-title">Language</div>
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <div class="liquidGlass-content">
+        <div class="section-title">Language</div>
       <div class="lang-toggle" role="tablist" aria-label="Language" id="langToggle">
         <button class="select" data-lang="English" aria-selected="true">English</button>
         <button class="select" data-lang="Sinhala">සිංහල</button>
@@ -27,6 +49,7 @@
             <path d="M9 3v1H4v2h16V4h-5V3H9zm2 5v9h2V8h-2zm4 0v9h2V8h-2zM7 8v9h2V8H7z" />
           </svg>
         </button>
+      </div>
       </div>
     </aside>
 
@@ -63,7 +86,11 @@
     </header>
 
     <main class="chat" role="main">
-      <div class="chat-header">
+      <div class="liquidGlass-effect"></div>
+      <div class="liquidGlass-tint"></div>
+      <div class="liquidGlass-shine"></div>
+      <div class="liquidGlass-content">
+        <div class="chat-header">
         <div>
           <div id="chatTitle" class="chat-title">Welcome</div>
           <div id="chatSubtitle" class="chat-subtitle">Select a subject and ask anything. Choose language to get answers in Sinhala or English.</div>
@@ -79,6 +106,7 @@
         <input id="inputBox" class="input" placeholder="Ask me anything..." aria-label="Message input" />
         <button id="micBtn" class="icon-btn" aria-label="Start speech input">🎤</button>
         <button id="sendBtn" class="send" aria-label="Send message">➤</button>
+      </div>
       </div>
     </main>
 

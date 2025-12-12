@@ -1,0 +1,38 @@
+services:
+  # Web Service (Frontend)
+  - type: web
+    name: grade9-ai-tutor-frontend
+    env: static
+    rootDir: .
+    buildCommand: "echo 'No build needed'"
+    staticPublishPath: .
+    routes:
+      - route: /*
+        path: ./index.html
+      - route: /login.html
+        path: ./login.html
+      - route: /signup.html
+        path: ./signup.html
+      - route: /styles.css
+        path: ./styles.css
+      - route: /script.js
+        path: ./script.js
+      - route: /login.css
+        path: ./login.css
+      - route: /login.js
+        path: ./login.js
+      - route: /signup.js
+        path: ./signup.js
+
+  # API Service (Backend)
+  - type: web
+    name: grade9-ai-tutor-api
+    env: python
+    rootDir: .
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+        value: "your_groq_api_key_here"
+    healthCheckPath: /health
