@@ -1,6 +1,6 @@
 from fastapi import APIRouter, File, UploadFile
 
-from .multimodal_service import save_upload_bytes, ocr_image
+from multimodal_service import save_upload_bytes, ocr_image
 
 router = APIRouter(prefix="/multimodal", tags=["multimodal"])
 
