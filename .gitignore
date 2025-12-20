@@ -24,3 +24,5 @@ dist/
 build/
 .out/
 .cache/
+
+.vercel

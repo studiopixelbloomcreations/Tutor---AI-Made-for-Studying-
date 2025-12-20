@@ -34,9 +34,14 @@ async def root():
     return RedirectResponse(url="/app/")
 
 # Enable CORS
+_allowed_origins_env = os.environ.get("ALLOWED_ORIGINS")
+_allowed_origins = ["*"]
+if _allowed_origins_env:
+    _allowed_origins = [o.strip() for o in _allowed_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
