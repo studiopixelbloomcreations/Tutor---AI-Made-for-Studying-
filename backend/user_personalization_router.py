@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from personalization import PersonalizationStore
+from .personalization import PersonalizationStore
 
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "personalization_data.json")

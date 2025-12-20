@@ -13,8 +13,16 @@
       "dest": "/api/index.py"
     },
     {
+      "src": "/(.*\\.(?:css|js|png|jpg|jpeg|gif|webp|svg|ico|map|json|txt|woff2?|ttf|eot))$",
+      "dest": "/frontend/$1"
+    },
+    {
+      "src": "/(login|signup)(\\.html)?$",
+      "dest": "/frontend/$1.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/frontend/index.html"
     }
   ]
 }

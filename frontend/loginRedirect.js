@@ -19,8 +19,8 @@
 
   function redirectToLogin(){
     try { sessionStorage.setItem(SESSION_REDIRECT_KEY, '1'); } catch (e) {}
-    const returnTo = encodeURIComponent(window.location.pathname.split('/').pop() || 'index.html');
-    window.location.href = 'login.html?return=' + returnTo;
+    const returnTo = encodeURIComponent(window.location.pathname || '/');
+    window.location.href = '/login?return=' + returnTo;
   }
 
   window.LoginRedirect = {
@@ -31,7 +31,7 @@
   window.addEventListener('DOMContentLoaded', ()=>{
     // Only guard the main app pages.
     const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
-    if(page === 'login.html' || page === 'signup.html') return;
+    if(page === 'login' || page === 'signup' || page === 'login.html' || page === 'signup.html') return;
 
     let alreadyRedirected = false;
     try { alreadyRedirected = sessionStorage.getItem(SESSION_REDIRECT_KEY) === '1'; } catch (e) {}

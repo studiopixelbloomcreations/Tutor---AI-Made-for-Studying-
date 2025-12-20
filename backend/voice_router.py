@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from voice_service import save_upload_bytes, speech_to_text, text_to_speech
+from .voice_service import save_upload_bytes, speech_to_text, text_to_speech
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 

@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from gamification import GamificationStore
+from .gamification import GamificationStore
 
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gamification_data.json")

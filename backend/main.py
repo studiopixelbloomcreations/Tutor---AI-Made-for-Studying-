@@ -9,10 +9,10 @@ import os
 import difflib
 import re
 
-from user_personalization_router import router as personalization_router
-from gamification_router import router as gamification_router
-from voice_router import router as voice_router
-from multimodal_router import router as multimodal_router
+from .user_personalization_router import router as personalization_router
+from .gamification_router import router as gamification_router
+from .voice_router import router as voice_router
+from .multimodal_router import router as multimodal_router
 
 # Initialize Groq client
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
@@ -28,7 +28,7 @@ _is_vercel = bool(os.environ.get("VERCEL"))
 
 if not _is_vercel:
     # Serve frontend (index.html + assets) under /app
-    FRONTEND_DIR = os.path.dirname(os.path.abspath(__file__))
+    FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend"))
     app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="app")
 
     @app.get("/", include_in_schema=False)

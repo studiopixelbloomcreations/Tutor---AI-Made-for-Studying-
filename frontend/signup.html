@@ -3,43 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sign in — The Tutor</title>
-  <link rel="stylesheet" href="login.css">
+  <title>Create account — The Tutor</title>
+  <link rel="stylesheet" href="/frontend/login.css">
 </head>
 <body>
-  <main class="login-root" role="main" aria-labelledby="signinTitle">
+  <main class="login-root" role="main" aria-labelledby="signupTitle">
     <div class="background-layer" aria-hidden="true"></div>
 
-    <section class="login-card" role="region" aria-labelledby="signinTitle">
+    <section class="login-card" role="region" aria-labelledby="signupTitle">
       <header class="card-header">
         <div class="logo">G9</div>
-        <h1 id="signinTitle">Welcome back</h1>
-        <p class="muted">Sign in to continue your Grade 9 learning sessions</p>
+        <h1 id="signupTitle">Create account</h1>
+        <p class="muted">Join The Tutor — simple Grade 9 learning</p>
       </header>
 
-      <form id="loginForm" class="login-form" novalidate>
+      <form id="signupForm" class="login-form" novalidate>
+        <label for="name" class="sr">Full name</label>
+        <input id="name" name="name" type="text" placeholder="Full name" required autocomplete="name" />
+
         <label for="email" class="sr">Email</label>
         <input id="email" name="email" type="email" placeholder="name@student.com" required autocomplete="email" />
 
         <label for="password" class="sr">Password</label>
-        <input id="password" name="password" type="password" placeholder="Password" required autocomplete="current-password" minlength="6" />
+        <input id="password" name="password" type="password" placeholder="Create a password" required minlength="6" />
+
+        <label for="confirm" class="sr">Confirm password</label>
+        <input id="confirm" name="confirm" type="password" placeholder="Confirm password" required minlength="6" />
 
         <div class="row between">
           <label class="remember">
-            <input type="checkbox" id="remember" name="remember" />
-            <span>Remember me</span>
+            <input type="checkbox" id="terms" name="terms" required />
+            <span>I agree to the terms</span>
           </label>
-          <a href="#" class="link">Forgot?</a>
+          <a href="/login" class="link">Already have an account?</a>
         </div>
 
-        <button type="submit" class="btn-primary">Sign in</button>
+        <button type="submit" class="btn-primary">Create account</button>
 
         <div class="divider"><span>or continue with</span></div>
 
-        <!-- centered socials with inline SVG icons (Google only) -->
         <div class="socials" style="display:flex;gap:12px;justify-content:center;">
           <button type="button" class="btn-social" data-provider="google" aria-label="Continue with Google" title="Continue with Google">
-            <!-- Google "G" icon -->
+            <!-- Google SVG -->
             <svg width="18" height="18" viewBox="0 0 533.5 544.3" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="vertical-align:middle;margin-right:10px">
               <path fill="#4285F4" d="M533.5 278.4c0-17.5-1.5-35.3-4.6-52.4H272v99.2h146.9c-6.4 34.8-25 64.3-53.4 84.1v69h86.2c50.5-46.5 82.8-115 82.8-199.9z"/>
               <path fill="#34A853" d="M272 544.3c72.6 0 133.6-24.1 178-65.5l-86.2-69c-24.1 16.2-55 25.8-91.8 25.8-70.6 0-130.4-47.6-151.8-111.4h-89.6v69.9C74.9 483.2 167.9 544.3 272 544.3z"/>
@@ -50,16 +55,17 @@
           </button>
         </div>
 
-        <p class="small muted">New here? <a href="signup.html">Create account</a> · <a href="index.html">Go to tutor</a></p>
+        <p class="small muted">By creating an account you agree to our <a href="#">terms</a>.</p>
       </form>
 
       <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     </section>
   </main>
 
-  <!-- Firebase SDK and initialization (replace placeholders with your Firebase project config) -->
+  <!-- Firebase SDK and initialization (same config as login.html) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="/frontend/signup.js"></script>
   <script>
     // Firebase config (from your project)
     const firebaseConfig = {
@@ -76,6 +82,6 @@
     const auth = firebase.auth();
   </script>
 
-  <script src="login.js" defer></script>
+  <script src="signup.js" defer></script>
 </body>
 </html>

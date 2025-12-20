@@ -1,12 +1,1 @@
-fastapi
-uvicorn
-groq
-pydantic
-python-multipart
-python-dotenv
-requests
-firebase-admin
-SpeechRecognition
-pyttsx3
-pytesseract
-pillow
+-r ../backend/requirements.txt
