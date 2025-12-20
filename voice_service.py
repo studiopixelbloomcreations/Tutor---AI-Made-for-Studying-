@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp_media")
-os.makedirs(TEMP_DIR, exist_ok=True)
+TEMP_DIR = os.environ.get("TMPDIR") or os.environ.get("TEMP") or "/tmp"
+TEMP_DIR = os.path.join(TEMP_DIR, "tmp_media")
 
 
 @dataclass
@@ -24,6 +24,7 @@ class TTSResult:
 
 
 def _unique_path(ext: str) -> str:
+    os.makedirs(TEMP_DIR, exist_ok=True)
     ext_clean = (ext or "").lstrip(".")
     if not ext_clean:
         ext_clean = "bin"
