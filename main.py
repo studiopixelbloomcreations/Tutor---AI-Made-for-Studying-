@@ -24,14 +24,17 @@ app.include_router(gamification_router)
 app.include_router(voice_router)
 app.include_router(multimodal_router)
 
-# Serve frontend (index.html + assets) under /app
-FRONTEND_DIR = os.path.dirname(os.path.abspath(__file__))
-app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="app")
+_is_vercel = bool(os.environ.get("VERCEL"))
 
-@app.get("/", include_in_schema=False)
-async def root():
-    # Serve UI from /app/ so relative asset links resolve correctly
-    return RedirectResponse(url="/app/")
+if not _is_vercel:
+    # Serve frontend (index.html + assets) under /app
+    FRONTEND_DIR = os.path.dirname(os.path.abspath(__file__))
+    app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="app")
+
+    @app.get("/", include_in_schema=False)
+    async def root():
+        # Serve UI from /app/ so relative asset links resolve correctly
+        return RedirectResponse(url="/app/")
 
 # Enable CORS
 _allowed_origins_env = os.environ.get("ALLOWED_ORIGINS")
