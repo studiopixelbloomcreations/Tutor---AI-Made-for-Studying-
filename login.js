@@ -2,6 +2,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('loginForm');
   const toast = document.getElementById('toast');
 
+  const TOKEN_KEY = 'g9_token';
+  const TOKEN_EXP_KEY = 'g9_token_exp';
+
+  function getReturnTarget(){
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('return') || 'index.html';
+    } catch (e) {
+      return 'index.html';
+    }
+  }
+
+  async function storeTokenFromUser(user){
+    if(!user) return false;
+    try {
+      const res = await user.getIdTokenResult(true);
+      const expMs = Date.parse(res.expirationTime);
+      localStorage.setItem(TOKEN_KEY, res.token);
+      localStorage.setItem(TOKEN_EXP_KEY, String(expMs));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function showToast(message) {
     toast.textContent = message;
     toast.hidden = false;
@@ -27,10 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
         firebase.auth().settings.appVerificationDisabledForTesting = true;
       }
       
-      await auth.signInWithEmailAndPassword(email, pass);
+      const cred = await auth.signInWithEmailAndPassword(email, pass);
+      const ok = await storeTokenFromUser(cred && cred.user);
+      if(!ok){
+        showToast('⚠️ Unable to connect to Google account. Please try again.');
+        return;
+      }
       showToast('Signed in — redirecting...');
-      // redirect to main app (adjust if needed)
-      setTimeout(() => window.location.href = 'index.html', 900);
+      setTimeout(() => window.location.href = getReturnTarget(), 900);
     } catch (err) {
       console.error('Login error:', err);
       let errorMessage = 'Sign-in failed';
@@ -58,12 +87,17 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.addScope('email');
-        await auth.signInWithPopup(provider);
+        const cred = await auth.signInWithPopup(provider);
+        const ok = await storeTokenFromUser(cred && cred.user);
+        if(!ok){
+          showToast('⚠️ Unable to connect to Google account. Please try again.');
+          return;
+        }
         showToast('Signed in with Google — redirecting...');
-        setTimeout(() => window.location.href = 'index.html', 900);
+        setTimeout(() => window.location.href = getReturnTarget(), 900);
       } catch (err) {
         console.error('Google sign-in error:', err);
-        showToast(err.message || 'Google sign-in failed');
+        showToast('⚠️ Unable to connect to Google account. Please try again.');
       }
     });
   });

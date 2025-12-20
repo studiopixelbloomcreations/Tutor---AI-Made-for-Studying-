@@ -1,0 +1,14 @@
+{
+  "users": {
+    "guest@student.com": {
+      "profile": {
+        "email": "guest@student.com",
+        "name": "",
+        "grade": "Grade 9",
+        "preferred_language": "English"
+      },
+      "topics": {},
+      "events": []
+    }
+  }
+}

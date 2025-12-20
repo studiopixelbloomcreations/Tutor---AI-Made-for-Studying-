@@ -2,4 +2,12 @@ fastapi
 uvicorn
 groq
 pydantic
+python-multipart
 python-dotenv
+requests
+firebase-admin
+SpeechRecognition
+pyttsx3
+pytesseract
+pillow
+# note-friendly dependency for audio conversion guidance is ffmpeg (external), no pip package needed
