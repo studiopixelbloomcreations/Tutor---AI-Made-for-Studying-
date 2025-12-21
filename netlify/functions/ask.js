@@ -32,6 +32,12 @@ exports.handler = async function handler(event) {
   const subject = payload.subject || "General";
   const language = payload.language || "English";
   const student_question = payload.student_question || "";
+  const history = Array.isArray(payload.history) ? payload.history : [];
+
+  const cleanedHistory = history
+    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+    .slice(-20)
+    .map(m => ({ role: m.role, content: String(m.content).slice(0, 1200) }));
 
   try {
     const response = await axios.post(
@@ -43,6 +49,7 @@ exports.handler = async function handler(event) {
             role: "system",
             content: `You are 'The Tutor' — a real, warm Grade 9 teacher in Sri Lanka. Your teaching must be strictly aligned to the official 2024 Sri Lankan Grade 9 print textbooks. Speak in ${language}.`
           },
+          ...cleanedHistory,
           {
             role: "user",
             content: `Subject: ${subject}\nStudent question: ${student_question}`

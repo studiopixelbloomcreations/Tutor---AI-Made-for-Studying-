@@ -61,6 +61,13 @@
       const lastBubble = messagesEl ? messagesEl.lastElementChild : null;
       const stopAnim = lastBubble ? startLoadingAnimation(lastBubble) : null;
 
+      const history = (chat && Array.isArray(chat.messages))
+        ? chat.messages
+            .filter(m => m && (m.role === 'user' || m.role === 'ai') && m.content && m.content !== 'Thinking…')
+            .slice(-20)
+            .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: String(m.content).slice(0, 1200) }))
+        : [];
+
       try {
         const res = await window.Api.apiFetch('/ask',{
           method:'POST',
@@ -69,6 +76,7 @@
             subject:state.subject,
             language:state.language,
             student_question:text,
+            history,
             title:chat.title,
             email:'guest@student.com'
           })

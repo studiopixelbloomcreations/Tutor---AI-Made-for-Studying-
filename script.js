@@ -375,8 +375,16 @@
     const langTag = state.language==='Sinhala' ? '[සිංහල]' : '[English]'; chat.messages.push({role:'user',content:langTag+' '+text}); appendMessage('user',langTag+' '+text); saveChats(); inputBox.value=''; if(micBtn) micBtn.classList.remove('hidden'); if(sendBtn) sendBtn.classList.remove('show'); chat.messages.push({role:'ai',content:'Thinking…'}); appendMessage('ai','Thinking…'); saveChats(); renderChats(); emitProgressEvent('g9:chat_context', { chatId: state.active, subject: state.subject });
     emitProgressEvent('g9:user_message', { chatId: state.active, subject: state.subject, text });
 
+    const history = (chat && Array.isArray(chat.messages))
+      ? chat.messages
+          .filter(m => m && (m.role === 'user' || m.role === 'ai') && m.content && m.content !== 'Thinking…')
+          .slice(-20)
+          .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: String(m.content).slice(0, 1200) }))
+      : [];
+
     try{ 
-      const res= await (window.Api && window.Api.apiFetch ? window.Api.apiFetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:state.subject,language:state.language,student_question:text,title:chat.title,email:'guest@student.com'})}) : fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:state.subject,language:state.language,student_question:text,title:chat.title,email:'guest@student.com'})}));
+      const reqBody = {subject:state.subject,language:state.language,student_question:text,history,title:chat.title,email:'guest@student.com'};
+      const res= await (window.Api && window.Api.apiFetch ? window.Api.apiFetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)}) : fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)}));
       const data=await res.json();
       const lastAi=[...chat.messages].reverse().find(m=>m.role==='ai');
       if(lastAi) lastAi.content=data.answer||'No answer'; emitProgressEvent('g9:ai_response', { chatId: state.active, subject: state.subject, text: data.answer });
