@@ -686,8 +686,8 @@ body {
   backdrop-filter: blur(var(--glass-blur));
   filter: url(#glass-distortion);
   overflow: hidden;
-  isolation: isolate;
   border-radius: var(--radius);
+  pointer-events: none;
 }
 
 .app-header::after {
@@ -698,6 +698,7 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.22));
   box-shadow: inset 2px 2px 1px 0 rgba(255, 255, 255, 0.45), inset -1px -1px 1px 1px rgba(255, 255, 255, 0.35);
   border-radius: var(--radius);
+  pointer-events: none;
 }
 
 .app-header>* {
@@ -1091,8 +1092,7 @@ body {
 .recent-chat-item:hover {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.10));
   box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px) scale(1.01);
-  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateY(-2px);
 }
 
 .recent-chat-item:hover::before {
@@ -2510,6 +2510,7 @@ body {
   flex-shrink: 0;
   position: relative;
   margin: 0 22px 22px 22px;
+  margin-top: auto;
 }
 
 .composer {

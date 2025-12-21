@@ -11,6 +11,10 @@
   const inputBox = qs('inputBox');
   const sendBtn = qs('sendBtn');
   const messagesEl = qs('messages');
+  const ttsVoiceSelect = qs('ttsVoiceSelect');
+  const ttsTestVoice = qs('ttsTestVoice');
+
+  const TTS_VOICE_STORAGE_KEY = 'g9_tts_voice';
 
   function appendBubble(role, text) {
     if (!messagesEl) return;
@@ -21,6 +25,67 @@
     try {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     } catch (e) {}
+  }
+
+  async function initTtsVoiceSelector(){
+    if(!ttsVoiceSelect) return;
+    if(!('speechSynthesis' in window) || !window.speechSynthesis.getVoices) return;
+
+    async function populate(){
+      let voices = [];
+      try {
+        voices = window.speechSynthesis.getVoices();
+      } catch (e) {}
+      if(!voices || !voices.length) {
+        // wait a moment for Edge to load "Online (Natural)" voices
+        await new Promise(r => setTimeout(r, 600));
+        try { voices = window.speechSynthesis.getVoices(); } catch (e) {}
+      }
+
+      const prev = ttsVoiceSelect.value;
+      const saved = (function(){
+        try { return String(localStorage.getItem(TTS_VOICE_STORAGE_KEY) || ''); } catch (e) { return ''; }
+      })();
+
+      ttsVoiceSelect.innerHTML = '';
+      const optAuto = document.createElement('option');
+      optAuto.value = '';
+      optAuto.textContent = 'Auto (best available)';
+      ttsVoiceSelect.appendChild(optAuto);
+
+      const sorted = (voices || []).slice().sort((a,b)=>{
+        const an = String(a.name||'');
+        const bn = String(b.name||'');
+        return an.localeCompare(bn);
+      });
+
+      sorted.forEach(v=>{
+        const o = document.createElement('option');
+        o.value = String(v.name || '');
+        o.textContent = `${String(v.name || '')} (${String(v.lang || '')})`;
+        ttsVoiceSelect.appendChild(o);
+      });
+
+      if(saved){
+        const match = Array.from(ttsVoiceSelect.options).find(o => o.value === saved);
+        if(match) ttsVoiceSelect.value = saved;
+        else ttsVoiceSelect.value = '';
+      } else if(prev) {
+        ttsVoiceSelect.value = prev;
+      }
+    }
+
+    await populate();
+    try {
+      window.speechSynthesis.onvoiceschanged = populate;
+    } catch (e) {}
+
+    ttsVoiceSelect.addEventListener('change', ()=>{
+      const v = String(ttsVoiceSelect.value || '');
+      try { localStorage.setItem(TTS_VOICE_STORAGE_KEY, v); } catch (e) {}
+      if(v) toast('Voice set: ' + v);
+      else toast('Voice set: Auto');
+    });
   }
 
   function toast(msg) {
@@ -211,6 +276,30 @@
       }
     }
 
+    function getSavedVoiceName(){
+      try {
+        return String(localStorage.getItem(TTS_VOICE_STORAGE_KEY) || '');
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setSavedVoiceName(name){
+      try {
+        localStorage.setItem(TTS_VOICE_STORAGE_KEY, String(name || ''));
+      } catch (e) {}
+    }
+
+    function findVoiceByName(voices, name){
+      const n = String(name || '').trim();
+      if(!n) return null;
+      const vs = Array.isArray(voices) ? voices : [];
+      const exact = vs.find(v => String(v.name || '') === n);
+      if(exact) return exact;
+      const loose = vs.find(v => String(v.name || '').toLowerCase() === n.toLowerCase());
+      return loose || null;
+    }
+
     function pickBestVoice(voices){
       const vs = Array.isArray(voices) ? voices : [];
       const langPref = (String(navigator.language || 'en-US'));
@@ -267,7 +356,8 @@
     try { window.speechSynthesis.cancel(); } catch (e) {}
 
     const voices = await waitForVoices();
-    const chosen = pickBestVoice(voices);
+    const savedName = getSavedVoiceName();
+    const chosen = findVoiceByName(voices, savedName) || pickBestVoice(voices);
     const chunks = splitIntoChunks(cleaned);
 
     for(const chunk of chunks){
@@ -303,6 +393,23 @@
       }
     });
   }
+
+  if (ttsTestVoice) {
+    ttsTestVoice.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        await speakText('Hello! This is a test of the selected AI voice.');
+      } catch (err) {
+        toast('Text-to-speech not available on this device/browser.');
+      }
+    });
+  }
+
+  try {
+    window.addEventListener('DOMContentLoaded', () => {
+      initTtsVoiceSelector();
+    });
+  } catch (e) {}
 
   // Image OCR is handled by upload.js (to avoid duplicate bindings)
 })();
