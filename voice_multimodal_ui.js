@@ -152,25 +152,61 @@
   }
 
   async function speakText(text) {
-    const payload = { text: text || '' };
-    const res = await apiFetch('/voice/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error('HTTP_' + res.status);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const raw = String(text || '').trim();
+    const cleaned = raw.replace(/\n?\s*AWARD_POINTS\s*:\s*\d+\s*$/i, '').trim();
 
-    if (lastAudio) {
-      try { lastAudio.pause(); } catch (e) {}
-      try { URL.revokeObjectURL(lastAudio.__url); } catch (e) {}
+    // Try backend TTS first (available only on the Python server)
+    try {
+      const payload = { text: cleaned };
+      const res = await apiFetch('/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP_' + res.status);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      if (lastAudio) {
+        try { lastAudio.pause(); } catch (e) {}
+        try { URL.revokeObjectURL(lastAudio.__url); } catch (e) {}
+      }
+
+      const audio = new Audio(url);
+      audio.__url = url;
+      lastAudio = audio;
+      await audio.play();
+      return;
+    } catch (e) {
+      // fall through to browser TTS
     }
 
-    const audio = new Audio(url);
-    audio.__url = url;
-    lastAudio = audio;
-    await audio.play();
+    // Fallback: browser SpeechSynthesis (works on Netlify)
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      throw new Error('NO_TTS');
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+
+    const utter = new SpeechSynthesisUtterance(cleaned);
+    utter.rate = 1.02;
+    utter.pitch = 1.15;
+    utter.volume = 1;
+
+    // Prefer a friendly female English voice if available
+    try {
+      const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      const pick = (voices || []).find(v => /female|woman|zira|susan|samantha|english/i.test(String(v.name || '')));
+      if (pick) utter.voice = pick;
+    } catch (e) {}
+
+    await new Promise((resolve, reject) => {
+      utter.onend = () => resolve();
+      utter.onerror = (ev) => reject(ev && ev.error ? ev.error : new Error('TTS_FAILED'));
+      window.speechSynthesis.speak(utter);
+    });
   }
 
   if (speakerBtn) {
@@ -184,7 +220,7 @@
       try {
         await speakText(text);
       } catch (err) {
-        toast('Voice server not responding (TTS).');
+        toast('Text-to-speech not available on this device/browser.');
       }
     });
   }
