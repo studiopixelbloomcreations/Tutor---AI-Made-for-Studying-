@@ -2,10 +2,33 @@
   publish = "."
   command = ""
 
-# API redirect to PythonAnywhere backend
+[functions]
+  directory = "netlify/functions"
+
+# API redirect to Netlify Functions
 [[redirects]]
-  from = "/api/*"
-  to = "https://yourusername.pythonanywhere.com/api/:splat"
+  from = "/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
+[[redirects]]
+  from = "/ask"
+  to = "/.netlify/functions/ask"
+  status = 200
+
+[[redirects]]
+  from = "/generate_title"
+  to = "/.netlify/functions/generate_title"
+  status = 200
+
+[[redirects]]
+  from = "/progress"
+  to = "/.netlify/functions/progress"
+  status = 200
+
+[[redirects]]
+  from = "/check_answer"
+  to = "/.netlify/functions/check_answer"
   status = 200
 
 # Basic headers for HTML/CSS/JS
