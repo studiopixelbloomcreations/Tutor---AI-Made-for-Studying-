@@ -153,7 +153,12 @@
 
   async function speakText(text) {
     const raw = String(text || '').trim();
-    const cleaned = raw.replace(/\n?\s*AWARD_POINTS\s*:\s*\d+\s*$/i, '').trim();
+    const cleaned = raw
+      .replace(/\n?\s*AWARD_POINTS\s*:\s*\d+\s*$/i, '')
+      // Remove most emojis/symbols so TTS doesn't read them awkwardly
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
 
     // Try backend TTS first (available only on the Python server)
     try {
@@ -186,27 +191,94 @@
       throw new Error('NO_TTS');
     }
 
-    try {
-      window.speechSynthesis.cancel();
-    } catch (e) {}
+    async function waitForVoices(){
+      try {
+        const now = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+        if(now && now.length) return now;
+      } catch (e) {}
+      await new Promise((resolve) => {
+        let done = false;
+        const finish = ()=>{ if(done) return; done = true; resolve(); };
+        try {
+          window.speechSynthesis.onvoiceschanged = finish;
+        } catch (e) {}
+        setTimeout(finish, 800);
+      });
+      try {
+        return window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      } catch (e) {
+        return [];
+      }
+    }
 
-    const utter = new SpeechSynthesisUtterance(cleaned);
-    utter.rate = 1.02;
-    utter.pitch = 1.15;
-    utter.volume = 1;
+    function pickBestVoice(voices){
+      const vs = Array.isArray(voices) ? voices : [];
+      const langPref = (String(navigator.language || 'en-US'));
+      const isEnglish = /^en/i.test(langPref);
+      const preferredLangs = isEnglish ? ['en-US','en-GB','en'] : [langPref, 'en-US', 'en'];
 
-    // Prefer a friendly female English voice if available
-    try {
-      const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-      const pick = (voices || []).find(v => /female|woman|zira|susan|samantha|english/i.test(String(v.name || '')));
-      if (pick) utter.voice = pick;
-    } catch (e) {}
+      const goodName = (name)=>/natural|neural|premium|enhanced|google|microsoft|aria|jenny|samantha|zira|susan/i.test(String(name||''));
+      const badName = (name)=>/robot|compact|basic/i.test(String(name||''));
 
-    await new Promise((resolve, reject) => {
-      utter.onend = () => resolve();
-      utter.onerror = (ev) => reject(ev && ev.error ? ev.error : new Error('TTS_FAILED'));
-      window.speechSynthesis.speak(utter);
-    });
+      const scored = vs.map(v=>{
+        const name = String(v.name || '');
+        const lang = String(v.lang || '');
+        let score = 0;
+        if(preferredLangs.some(l => lang.toLowerCase().startsWith(l.toLowerCase()))) score += 50;
+        if(goodName(name)) score += 30;
+        if(!badName(name)) score += 5;
+        if(v.localService) score += 2;
+        return { v, score };
+      }).sort((a,b)=>b.score-a.score);
+
+      return scored.length ? scored[0].v : null;
+    }
+
+    function splitIntoChunks(t){
+      const s = String(t || '').trim();
+      if(!s) return [];
+      // sentence-ish chunks to sound more natural
+      const parts = s
+        .replace(/\s+/g, ' ')
+        .split(/(?<=[.!?])\s+/)
+        .map(x => x.trim())
+        .filter(Boolean);
+      const chunks = [];
+      let buf = '';
+      for(const p of parts){
+        if((buf + ' ' + p).trim().length > 220){
+          if(buf) chunks.push(buf.trim());
+          buf = p;
+        } else {
+          buf = (buf ? (buf + ' ' + p) : p);
+        }
+      }
+      if(buf) chunks.push(buf.trim());
+      return chunks.length ? chunks : [s];
+    }
+
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+
+    const voices = await waitForVoices();
+    const chosen = pickBestVoice(voices);
+    const chunks = splitIntoChunks(cleaned);
+
+    for(const chunk of chunks){
+      const utter = new SpeechSynthesisUtterance(chunk);
+      utter.rate = 0.96;
+      utter.pitch = 1.06;
+      utter.volume = 1;
+      if(chosen) utter.voice = chosen;
+
+      await new Promise((resolve, reject) => {
+        utter.onend = () => resolve();
+        utter.onerror = (ev) => reject(ev && ev.error ? ev.error : new Error('TTS_FAILED'));
+        window.speechSynthesis.speak(utter);
+      });
+
+      // tiny pause between sentences
+      await new Promise(r => setTimeout(r, 120));
+    }
   }
 
   if (speakerBtn) {
