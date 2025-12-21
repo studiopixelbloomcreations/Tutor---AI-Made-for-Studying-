@@ -784,6 +784,12 @@ body {
   padding: 24px;
   max-width: 800px;
   margin: 0 auto;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
 .badges-header {

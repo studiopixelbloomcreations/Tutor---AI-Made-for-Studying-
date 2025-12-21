@@ -167,23 +167,14 @@
           setTimeout(() => c.style.display = 'none', 300);
         }
       });
-      // Hide badges content when switching sidebar tabs
-      if (badgesContent) {
-        badgesContent.style.display = 'none';
-      }
-      if (badgesTab) {
-        badgesTab.classList.remove('active');
-      }
-      if (composerEl) {
-        composerEl.style.display = '';
-      }
-      // Show welcome panel and messages appropriately
-      if (tab === 'chats') {
-        checkWelcomePanel();
-      } else {
-        if (welcomePanel) welcomePanel.style.display = 'none';
-        if (messagesEl) messagesEl.style.display = 'none';
-      }
+      // If badges panel is open, close it and restore the previous chat state.
+      try {
+        if (badgesTab && badgesTab.classList.contains('active')) {
+          badgesTab.classList.remove('active');
+          if (badgesContent) badgesContent.style.display = 'none';
+          restoreBadgesPrevState();
+        }
+      } catch (e) {}
     });
   });
 
@@ -261,7 +252,7 @@
         // Activate badges tab
         badgesPrevState = captureBadgesPrevState();
         badgesTab.classList.add('active');
-        if (badgesContent) badgesContent.style.display = 'block';
+        if (badgesContent) badgesContent.style.display = 'flex';
         if (welcomePanel) welcomePanel.style.display = 'none';
         if (messagesEl) messagesEl.style.display = 'none';
         if (composerEl) composerEl.style.display = 'none';

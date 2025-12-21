@@ -131,7 +131,7 @@
   }
   function toggleBadges(){
     if(!badgesContent) return;
-    const open = badgesContent.style.display === 'block';
+    const open = badgesContent.style.display === 'block' || badgesContent.style.display === 'flex';
     if(open){
       badgesContent.style.display = 'none';
       if(badgesTab) badgesTab.classList.remove('active');
@@ -139,22 +139,23 @@
       return;
     }
     prevState = capturePrev();
-    badgesContent.style.display = 'block';
+    badgesContent.style.display = 'flex';
     if(badgesTab) badgesTab.classList.add('active');
     if(welcomePanel) welcomePanel.style.display = 'none';
     if(messagesEl) messagesEl.style.display = 'none';
     if(composerEl) composerEl.style.display = 'none';
     refreshBadges();
   }
-  try {
-    if(badgesTab && !window.__g9_badges_handler_bound){
-      badgesTab.addEventListener('click', toggleBadges);
-    }
-  } catch (e) {
-    if(badgesTab) badgesTab.addEventListener('click', toggleBadges);
-  }
 
   window.addEventListener('DOMContentLoaded', () => {
+    // Bind fallback toggle only after the main UI script had a chance to bind.
+    try {
+      if(badgesTab && !window.__g9_badges_handler_bound){
+        badgesTab.addEventListener('click', toggleBadges);
+      }
+    } catch (e) {
+      try { if(badgesTab) badgesTab.addEventListener('click', toggleBadges); } catch (e2) {}
+    }
     refreshBadges();
   });
 
