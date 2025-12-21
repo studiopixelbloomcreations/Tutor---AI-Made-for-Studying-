@@ -37,6 +37,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2400);
   }
 
+  function friendlyAuthError(err){
+    const code = err && err.code ? String(err.code) : '';
+    if(code === 'auth/unauthorized-domain') return 'This site is not allowed in Firebase. Add your Netlify domain to Firebase Auth → Settings → Authorized domains.';
+    if(code === 'auth/popup-blocked') return 'Popup was blocked. Allow popups for this site and try again.';
+    if(code === 'auth/popup-closed-by-user') return 'Popup closed. Please try again.';
+    if(code === 'auth/cancelled-popup-request') return 'Login was interrupted. Please try again.';
+    if(code === 'auth/network-request-failed') return 'Network error. Please check your connection and try again.';
+    if(code) return code;
+    return (err && err.message) ? String(err.message) : 'Sign-in failed';
+  }
+
+  async function ensurePersistence(){
+    try {
+      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    } catch (e) {}
+  }
+
+  (async function(){
+    try {
+      await ensurePersistence();
+      const res = await auth.getRedirectResult();
+      if(res && res.user){
+        const ok = await storeTokenFromUser(res.user);
+        if(ok){
+          showToast('Signed in — redirecting...');
+          setTimeout(() => window.location.href = getReturnTarget(), 700);
+        } else {
+          showToast('⚠️ Unable to complete sign-in. Please try again.');
+        }
+      }
+    } catch (err){
+      console.error('Redirect sign-in error:', err);
+    }
+  })();
+
   // Sign in with email & password
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -51,11 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         firebase.auth().settings.appVerificationDisabledForTesting = true;
       }
+
+      await ensurePersistence();
       
       const cred = await auth.signInWithEmailAndPassword(email, pass);
       const ok = await storeTokenFromUser(cred && cred.user);
       if(!ok){
-        showToast('⚠️ Unable to connect to Google account. Please try again.');
+        showToast('⚠️ Unable to sign in. Please try again.');
         return;
       }
       showToast('Signed in — redirecting...');
@@ -84,20 +121,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           firebase.auth().settings.appVerificationDisabledForTesting = true;
         }
+
+        await ensurePersistence();
         
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.addScope('email');
-        const cred = await auth.signInWithPopup(provider);
+        let cred = null;
+        try {
+          cred = await auth.signInWithPopup(provider);
+        } catch (popupErr){
+          const code = popupErr && popupErr.code ? String(popupErr.code) : '';
+          if(code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request'){
+            await auth.signInWithRedirect(provider);
+            return;
+          }
+          throw popupErr;
+        }
+
         const ok = await storeTokenFromUser(cred && cred.user);
         if(!ok){
-          showToast('⚠️ Unable to connect to Google account. Please try again.');
+          showToast('⚠️ Unable to complete sign-in. Please try again.');
           return;
         }
         showToast('Signed in with Google — redirecting...');
         setTimeout(() => window.location.href = getReturnTarget(), 900);
       } catch (err) {
         console.error('Google sign-in error:', err);
-        showToast('⚠️ Unable to connect to Google account. Please try again.');
+        showToast(friendlyAuthError(err));
       }
     });
   });
