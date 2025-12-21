@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
           cred = await auth.signInWithPopup(provider);
         } catch (popupErr){
           const code = popupErr && popupErr.code ? String(popupErr.code) : '';
-          if(code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request'){
+          if(code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request' || code === 'auth/popup-closed-by-user'){
             await auth.signInWithRedirect(provider);
             return;
           }
