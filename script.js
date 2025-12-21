@@ -40,6 +40,18 @@
     active: localStorage.getItem('g9_active') || null
   };
 
+  // Remote chat sync (Firestore via GoogleSync)
+  try {
+    window.addEventListener('g9:remote_chats', (ev)=>{
+      const d = ev && ev.detail ? ev.detail : {};
+      if(Array.isArray(d.chats)) state.chats = d.chats;
+      if(d.active !== undefined) state.active = d.active;
+      saveChats();
+      renderChats();
+      renderActiveChat();
+    });
+  } catch (e) {}
+
   // Theme handling
   function updateThemeToggleUI(){
     if(!themeToggleBtn) return;
@@ -307,7 +319,7 @@
   };
 
   // Chat persistence
-  function saveChats(){ localStorage.setItem('g9_chats', JSON.stringify(state.chats)); localStorage.setItem('g9_active', state.active); }
+  function saveChats(){ localStorage.setItem('g9_chats', JSON.stringify(state.chats)); localStorage.setItem('g9_active', state.active); try { if(window.GoogleSync && window.GoogleSync.queueChatsSave) window.GoogleSync.queueChatsSave(state.chats, state.active); } catch (e) {} }
   function createChat(title){ const id='c_'+Date.now(); const chat={id,title:title||'New Chat',messages:[],subject:state.subject,language:state.language,created:Date.now()}; state.chats.unshift(chat); state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); }
   function clearAll(){ state.chats=[]; state.active=null; saveChats(); renderChats(); renderActiveChat(); }
 

@@ -82,6 +82,12 @@
   async function refreshBadges() {
     try {
       const email = getEmail();
+      const uid = (window.GoogleSync && window.GoogleSync.getUid) ? window.GoogleSync.getUid() : null;
+      if(uid && window.GoogleSync && window.GoogleSync.loadGamification){
+        const g = await window.GoogleSync.loadGamification(uid);
+        renderBadges({ badges: (g && g.badges) ? g.badges : [] });
+        return;
+      }
       const payload = await apiGet('/gamification/get_badges?email=' + encodeURIComponent(email));
       renderBadges(payload && payload.data);
     } catch (e) {

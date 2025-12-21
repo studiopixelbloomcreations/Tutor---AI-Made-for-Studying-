@@ -199,12 +199,39 @@
   }
 
   async function fetchSnapshot(){
-    if(!window.Api || !window.Api.apiFetch) throw new Error('API_UNAVAILABLE');
+    const uid = (window.GoogleSync && window.GoogleSync.getUid) ? window.GoogleSync.getUid() : null;
     const email = getEmail();
-    const res = await window.Api.apiFetch('/user/get_progress?email=' + encodeURIComponent(email), { method: 'GET' });
-    if(!res.ok) throw new Error('HTTP_' + res.status);
-    const data = await res.json();
-    return data && data.data;
+    if(uid && window.GoogleSync && window.GoogleSync.loadGamification){
+      const g = await window.GoogleSync.loadGamification(uid);
+      const local = (window.Progress && window.Progress.getState) ? window.Progress.getState() : {};
+      const points = (g && (g.points || g.points === 0)) ? g.points : (local.totalPoints || 0);
+      let topicStats = null;
+      try {
+        if(window.firebase && firebase.firestore){
+          const db = firebase.firestore();
+          const snap = await db.collection('users').doc(uid).collection('tutor').doc('topic_stats').get();
+          topicStats = snap && snap.exists ? (snap.data() || null) : null;
+        }
+      } catch (e) {}
+      const topics = topicStats && topicStats.topics ? topicStats.topics : {};
+      const rows = Object.values(topics || {}).map(t => ({
+        topic: t.topic,
+        questions_answered: t.questions_answered || 0,
+        correct: t.correct || 0,
+        score_total: t.score_total || 0,
+        difficulty: t.difficulty || 2
+      }));
+      const totalQ = rows.reduce((a,r)=>a+(r.questions_answered||0), 0);
+      const totalCorrect = rows.reduce((a,r)=>a+(r.correct||0), 0);
+      const totalScore = rows.reduce((a,r)=>a+(r.score_total||0), 0) || points;
+      const snapshot = {
+        profile: { name: (window.Auth && window.Auth.getUser && window.Auth.getUser() && window.Auth.getUser().name) || 'Student', grade: 'Grade 9', preferred_language: getLanguage() },
+        progress: { total_questions: totalQ, total_correct: totalCorrect, total_score: totalScore, topics },
+        feedback: { headline: 'Your progress', message: 'Your progress is saved to your Google account when signed in.' }
+      };
+      return snapshot;
+    }
+    throw new Error('NO_REMOTE_SNAPSHOT');
   }
 
   function fallbackFromLocal(){
@@ -222,8 +249,8 @@
     const points = local ? (local.totalPoints || 0) : 0;
     setText(elHeadline, lang === 'Sinhala' ? 'ඔයාගේ ප්‍රගතිය' : 'Your progress');
     setText(elMessage, lang === 'Sinhala'
-      ? 'ඔයාගේ Profile දත්ත server එකට සම්බන්ධ කරන්න main.py එකට router එක include කරලා තිබෙනවාද බලන්න.'
-      : 'To enable server-backed personalization, the backend must include the /user router.');
+      ? 'ඔයා Google account එකෙන් sign in වුනාම ප්‍රගතිය save වෙයි.'
+      : 'Sign in with Google to save your progress to your account.');
     setText(elSummary, (lang === 'Sinhala' ? 'මුළු ලකුණු: ' : 'Total points: ') + points);
     setText(elAccuracy, 'Accuracy: 0%');
     if(elFill) elFill.style.width = '0%';
@@ -232,7 +259,7 @@
       elTopics.innerHTML = '';
       const row = document.createElement('div');
       row.className = 'profile-topic-row';
-      row.textContent = 'Server personalization not active.';
+      row.textContent = 'Personalization is available when signed in.';
       elTopics.appendChild(row);
     }
 

@@ -63,18 +63,32 @@
   }
 
   async function loadPoints(){
+    const uid = (window.GoogleSync && window.GoogleSync.getUid) ? window.GoogleSync.getUid() : null;
+    if(uid && window.GoogleSync && window.GoogleSync.loadGamification){
+      const g = await window.GoogleSync.loadGamification(uid);
+      return g;
+    }
     const email = getEmail();
     const data = await apiGet('/gamification/get_points?email=' + encodeURIComponent(email));
     return data && data.data;
   }
 
   async function loadBadges(){
+    const uid = (window.GoogleSync && window.GoogleSync.getUid) ? window.GoogleSync.getUid() : null;
+    if(uid && window.GoogleSync && window.GoogleSync.loadGamification){
+      const g = await window.GoogleSync.loadGamification(uid);
+      return { badges: (g && g.badges) ? g.badges : [] };
+    }
     const email = getEmail();
     const data = await apiGet('/gamification/get_badges?email=' + encodeURIComponent(email));
     return data && data.data;
   }
 
   async function loadLeaderboard(){
+    if(window.GoogleSync && window.GoogleSync.loadLeaderboard){
+      const rows = await window.GoogleSync.loadLeaderboard(10);
+      return rows;
+    }
     const data = await apiGet('/gamification/get_leaderboard?limit=10');
     return data && data.data;
   }

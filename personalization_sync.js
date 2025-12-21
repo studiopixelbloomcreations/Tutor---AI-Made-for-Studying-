@@ -32,28 +32,24 @@
   }
 
   async function saveAttempt(opts){
-    if(!window.Api || !window.Api.apiFetch) return;
-
-    const payload = {
-      email: getEmail(),
-      topic: opts.topic || getTopic(),
-      correct: !!opts.correct,
-      score: Number.isFinite(opts.score) ? opts.score : 0,
-      question: (opts.question || '').slice(0, 500),
-      profile: {
-        preferred_language: getLanguage()
-      }
-    };
-
-    const res = await window.Api.apiFetch('/user/save_progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    // If the router isn't included yet, this will likely be 404.
-    if(!res.ok) throw new Error('HTTP_' + res.status);
-    return res.json();
+    const uid = (window.GoogleSync && window.GoogleSync.getUid) ? window.GoogleSync.getUid() : null;
+    if(!uid || !window.firebase || !firebase.firestore) return;
+    const db = firebase.firestore();
+    const topic = opts.topic || getTopic();
+    const score = Number.isFinite(opts.score) ? opts.score : 0;
+    const correct = !!opts.correct;
+    const docRef = db.collection('users').doc(uid).collection('tutor').doc('topic_stats');
+    const field = topic.replace(/[^a-zA-Z0-9_\- ]/g, '').slice(0, 40) || 'General';
+    const payload = {};
+    payload['topics.' + field + '.topic'] = topic;
+    payload['topics.' + field + '.questions_answered'] = firebase.firestore.FieldValue.increment(1);
+    payload['topics.' + field + '.correct'] = firebase.firestore.FieldValue.increment(correct ? 1 : 0);
+    payload['topics.' + field + '.score_total'] = firebase.firestore.FieldValue.increment(score);
+    payload['updatedAt'] = Date.now();
+    await docRef.set(payload, { merge: true });
+    const profileRef = db.collection('users').doc(uid).collection('tutor').doc('profile');
+    await profileRef.set({ preferred_language: getLanguage(), email: getEmail(), updatedAt: Date.now() }, { merge: true });
+    return true;
   }
 
   // Listen for awarded points events.
@@ -84,12 +80,12 @@
   // Also save a baseline profile on load (best-effort).
   window.addEventListener('DOMContentLoaded', ()=>{
     try {
-      if(window.Api && window.Api.apiFetch){
-        window.Api.apiFetch('/user/set_profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: getEmail(), preferred_language: getLanguage() })
-        }).catch(()=>{});
+      const uid = (window.GoogleSync && window.GoogleSync.getUid) ? window.GoogleSync.getUid() : null;
+      if(uid && window.firebase && firebase.firestore){
+        const db = firebase.firestore();
+        db.collection('users').doc(uid).collection('tutor').doc('profile')
+          .set({ email: getEmail(), preferred_language: getLanguage(), updatedAt: Date.now() }, { merge: true })
+          .catch(()=>{});
       }
     } catch (e) {}
   });
