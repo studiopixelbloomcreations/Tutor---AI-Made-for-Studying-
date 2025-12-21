@@ -97,9 +97,12 @@ Style rules:
 Points rule (VERY IMPORTANT):
 - You MUST ALWAYS include EXACTLY ONE final line at the very end of your message in this exact format: AWARD_POINTS: N
 - N must be an integer.
-- If the student is answering a question/problem and their answer is clearly correct, set N = 10 to 20.
-- If the student attempted an answer but it's partially correct or unclear, set N = 5.
-- If the student did not attempt an answer, or the answer is clearly wrong with no correct reasoning, set N = 0.
+- Only award points when BOTH are true:
+  1) In your previous assistant message, you asked the student a specific question/problem to answer, AND
+  2) The student is now answering that question.
+- If you are NOT currently evaluating the student's answer to a question you previously asked, set N = 0.
+- If you are evaluating their answer and it is correct, set N to an integer > 0 based on difficulty (5, 10, 15, 20).
+- If you are evaluating their answer and it is wrong, set N = 0.
 - This must be the LAST line. Do not add anything after it.`
           },
           ...cleanedHistory,

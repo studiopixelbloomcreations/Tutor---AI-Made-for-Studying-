@@ -34,7 +34,8 @@
       activeChatId: null,
       activeSubject: null,
       hasAiResponse: false,
-      pendingQuiz: null // {question, correct_answer}
+      pendingQuiz: null, // {question, correct_answer}
+      lastAiText: ''
     };
   }
 
@@ -89,9 +90,20 @@
 
     const s = load();
 
+    function prevAiLooksLikeQuestion(){
+      const t = String(s.lastAiText || '').trim();
+      if(!t) return false;
+      // Heuristic: question mark or explicit quiz prompt
+      if(/\?\s*$/.test(t) || t.includes('?')) return true;
+      if(/\bquiz\b\s*:/i.test(t)) return true;
+      if(/\b(correct answer|your answer)\b/i.test(t)) return true;
+      return false;
+    }
+
     function resetSession(){
       s.hasAiResponse = false;
       s.pendingQuiz = null;
+      s.lastAiText = '';
       save(s);
     }
 
@@ -102,6 +114,7 @@
         // Reset for new session, but don't award points here anymore since they're awarded immediately on AI response
         s.hasAiResponse = false;
         s.pendingQuiz = null;
+        s.lastAiText = '';
       }
       s.activeChatId = chatId;
       s.activeSubject = subject;
@@ -124,11 +137,16 @@
         save(s);
       }
 
-      const award = extractAwardPoints(d.text);
+      const allowAward = prevAiLooksLikeQuestion();
+      const award = allowAward ? extractAwardPoints(d.text) : 0;
       if(award > 0){
         window.Progress.addPoints(award);
         emit('g9:marks_updated', { reason: 'ai_award', points: award });
       }
+
+      // Always update last AI text after handling, so the next response can be gated.
+      s.lastAiText = String(d.text || '');
+      save(s);
 
       const quiz = extractQuiz(d.text);
       if(quiz){
