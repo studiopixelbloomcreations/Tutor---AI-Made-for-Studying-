@@ -217,7 +217,7 @@
       const isEnglish = /^en/i.test(langPref);
       const preferredLangs = isEnglish ? ['en-US','en-GB','en'] : [langPref, 'en-US', 'en'];
 
-      const goodName = (name)=>/natural|neural|premium|enhanced|google|microsoft|aria|jenny|samantha|zira|susan/i.test(String(name||''));
+      const goodName = (name)=>/online|natural|neural|premium|enhanced|google|microsoft|aria|jenny|guy|sara|sabrina|sonia|samantha|zira|susan/i.test(String(name||''));
       const badName = (name)=>/robot|compact|basic/i.test(String(name||''));
 
       const scored = vs.map(v=>{
@@ -225,7 +225,14 @@
         const lang = String(v.lang || '');
         let score = 0;
         if(preferredLangs.some(l => lang.toLowerCase().startsWith(l.toLowerCase()))) score += 50;
-        if(goodName(name)) score += 30;
+        // Strongly prefer high quality voices when available (Edge "Online (Natural)", Google voices, etc)
+        if(/online\s*\(natural\)/i.test(name)) score += 100;
+        if(/natural/i.test(name)) score += 60;
+        if(/neural/i.test(name)) score += 50;
+        if(/microsoft\s+aria/i.test(name)) score += 80;
+        if(/microsoft\s+jenny/i.test(name)) score += 80;
+        if(/google/i.test(name)) score += 40;
+        if(goodName(name)) score += 20;
         if(!badName(name)) score += 5;
         if(v.localService) score += 2;
         return { v, score };
