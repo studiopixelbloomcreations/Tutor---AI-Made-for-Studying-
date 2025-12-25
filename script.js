@@ -428,16 +428,28 @@
         if(sendBtn) sendBtn.classList.remove('show');
 
         if(window.ExamModeUI){
-          if(!window.ExamModeUI.isSetupComplete || !window.ExamModeUI.isSetupComplete()){
-            if(window.ExamModeUI.handleUserInput) window.ExamModeUI.handleUserInput(text);
+          const isSetupCompleteFn = (typeof window.ExamModeUI.isSetupComplete === 'function') ? window.ExamModeUI.isSetupComplete : null;
+          const handleUserInputFn = (typeof window.ExamModeUI.handleUserInput === 'function') ? window.ExamModeUI.handleUserInput : null;
+          const appendUserMessageFn = (typeof window.ExamModeUI.appendUserMessage === 'function') ? window.ExamModeUI.appendUserMessage : null;
+          const appendAiMessageFn = (typeof window.ExamModeUI.appendAiMessage === 'function') ? window.ExamModeUI.appendAiMessage : null;
+          const updateMessageFn = (typeof window.ExamModeUI.updateMessage === 'function') ? window.ExamModeUI.updateMessage : null;
+          const getHistoryForBackendFn = (typeof window.ExamModeUI.getHistoryForBackend === 'function') ? window.ExamModeUI.getHistoryForBackend : null;
+          const getAnswersFn = (typeof window.ExamModeUI.getAnswers === 'function') ? window.ExamModeUI.getAnswers : null;
+
+          if(!isSetupCompleteFn || !isSetupCompleteFn()){
+            if(handleUserInputFn) handleUserInputFn(text);
+            else {
+              console.error('ExamModeUI.handleUserInput missing');
+              try { toast('Exam Mode UI is not ready (refresh the page).',{duration:5000}); } catch (e) {}
+            }
             return;
           }
 
-          if(window.ExamModeUI.appendUserMessage) window.ExamModeUI.appendUserMessage(text);
-          const thinkingIndex = window.ExamModeUI.appendAiMessage ? window.ExamModeUI.appendAiMessage('Thinking…') : null;
+          if(appendUserMessageFn) appendUserMessageFn(text);
+          const thinkingIndex = appendAiMessageFn ? appendAiMessageFn('Thinking…') : null;
 
-          const history = window.ExamModeUI.getHistoryForBackend ? window.ExamModeUI.getHistoryForBackend(20) : [];
-          const setup = window.ExamModeUI.getAnswers ? window.ExamModeUI.getAnswers() : {};
+          const history = getHistoryForBackendFn ? getHistoryForBackendFn(20) : [];
+          const setup = getAnswersFn ? getAnswersFn() : {};
 
           const setupTag = (setup && (setup.intent || setup.term || setup.subject))
             ? ('[ExamMode Setup] ' +
@@ -462,22 +474,27 @@
 
             const data = await res.json();
             const answer = (data && data.answer) ? data.answer : 'No answer';
-            if(window.ExamModeUI.updateMessage && typeof thinkingIndex === 'number'){
-              window.ExamModeUI.updateMessage(thinkingIndex, answer);
-            } else if(window.ExamModeUI.appendAiMessage){
-              window.ExamModeUI.appendAiMessage(answer);
-            }
+            if(updateMessageFn && typeof thinkingIndex === 'number') updateMessageFn(thinkingIndex, answer);
+            else if(appendAiMessageFn) appendAiMessageFn(answer);
           } catch (e) {
             const msg = '⚠️ Message failed to send. Please check your connection or try again later.';
-            if(window.ExamModeUI.updateMessage && typeof thinkingIndex === 'number') window.ExamModeUI.updateMessage(thinkingIndex, msg);
-            else if(window.ExamModeUI.appendAiMessage) window.ExamModeUI.appendAiMessage(msg);
+            if(updateMessageFn && typeof thinkingIndex === 'number') updateMessageFn(thinkingIndex, msg);
+            else if(appendAiMessageFn) appendAiMessageFn(msg);
             try { toast(msg,{duration:5000}); } catch (e2) {}
           }
 
           return;
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Exam Mode send failed:', e);
+      try { toast('Exam Mode crashed — refresh the page and try again.',{duration:6000}); } catch (e2) {}
+      try {
+        if(window.ExamModeUI && typeof window.ExamModeUI.appendAiMessage === 'function'){
+          window.ExamModeUI.appendAiMessage('⚠️ Exam Mode crashed. Please refresh the page and try again.');
+        }
+      } catch (e3) {}
+    }
 
     let chat=state.chats.find(c=>c.id===state.active); if(!chat){ createChat('New Chat'); chat=state.chats[0]; }
     if(chat.messages.length===0){ const t=await generateTitle(text); chat.title=t; saveChats(); renderChats(); renderActiveChat(); }
