@@ -297,7 +297,10 @@
       if (messagesEl) messagesEl.style.display = 'none';
       if (composerEl) composerEl.style.display = 'flex';
       examModeRoot.style.display = 'flex';
-      try { if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions(); } catch (e) {}
+      try {
+        if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset();
+        if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions();
+      } catch (e) {}
     } else {
       examModeRoot.style.display = 'none';
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
@@ -423,8 +426,56 @@
         inputBox.value='';
         if(micBtn) micBtn.classList.remove('hidden');
         if(sendBtn) sendBtn.classList.remove('show');
-        if(window.ExamModeUI && window.ExamModeUI.handleUserInput) window.ExamModeUI.handleUserInput(text);
-        return;
+
+        if(window.ExamModeUI){
+          if(!window.ExamModeUI.isSetupComplete || !window.ExamModeUI.isSetupComplete()){
+            if(window.ExamModeUI.handleUserInput) window.ExamModeUI.handleUserInput(text);
+            return;
+          }
+
+          if(window.ExamModeUI.appendUserMessage) window.ExamModeUI.appendUserMessage(text);
+          const thinkingIndex = window.ExamModeUI.appendAiMessage ? window.ExamModeUI.appendAiMessage('Thinking…') : null;
+
+          const history = window.ExamModeUI.getHistoryForBackend ? window.ExamModeUI.getHistoryForBackend(20) : [];
+          const setup = window.ExamModeUI.getAnswers ? window.ExamModeUI.getAnswers() : {};
+
+          const setupTag = (setup && (setup.intent || setup.term || setup.subject))
+            ? ('[ExamMode Setup] ' +
+              'Type=' + (setup.intent || '—') + '; ' +
+              'Term=' + (setup.term || '—') + '; ' +
+              'Subject=' + (setup.subject || '—') + '. ')
+            : '[ExamMode] ';
+
+          try {
+            const reqBody = {
+              subject: setup.subject || state.subject,
+              language: state.language,
+              student_question: setupTag + text,
+              history,
+              title: 'Exam Mode',
+              email: 'guest@student.com'
+            };
+
+            const res = await (window.Api && window.Api.apiFetch
+              ? window.Api.apiFetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(reqBody) })
+              : fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(reqBody) }));
+
+            const data = await res.json();
+            const answer = (data && data.answer) ? data.answer : 'No answer';
+            if(window.ExamModeUI.updateMessage && typeof thinkingIndex === 'number'){
+              window.ExamModeUI.updateMessage(thinkingIndex, answer);
+            } else if(window.ExamModeUI.appendAiMessage){
+              window.ExamModeUI.appendAiMessage(answer);
+            }
+          } catch (e) {
+            const msg = '⚠️ Message failed to send. Please check your connection or try again later.';
+            if(window.ExamModeUI.updateMessage && typeof thinkingIndex === 'number') window.ExamModeUI.updateMessage(thinkingIndex, msg);
+            else if(window.ExamModeUI.appendAiMessage) window.ExamModeUI.appendAiMessage(msg);
+            try { toast(msg,{duration:5000}); } catch (e2) {}
+          }
+
+          return;
+        }
       }
     } catch (e) {}
 

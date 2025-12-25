@@ -81,6 +81,41 @@
     convo.push({ role: 'user', text: String(text || '') });
   }
 
+  function isSetupComplete(){
+    return step >= questions.length;
+  }
+
+  function appendUserMessage(text){
+    pushUser(text);
+    render();
+  }
+
+  function appendAiMessage(text){
+    pushAi(text);
+    const idx = convo.length - 1;
+    render();
+    return idx;
+  }
+
+  function updateMessage(index, newText){
+    if(typeof index !== 'number') return;
+    if(index < 0 || index >= convo.length) return;
+    convo[index].text = String(newText || '');
+    render();
+  }
+
+  function getAnswers(){
+    return { ...answers };
+  }
+
+  function getHistoryForBackend(limit){
+    const n = typeof limit === 'number' ? limit : 20;
+    return convo
+      .filter(m => m && (m.role === 'user' || m.role === 'ai') && m.text && m.text !== 'Thinking…')
+      .slice(-n)
+      .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: String(m.text).slice(0, 1200) }));
+  }
+
   function handleUserInput(text){
     const t = String(text || '').trim();
     if(!t) return;
@@ -96,7 +131,7 @@
     if(step < questions.length){
       pushAi(questions[step]);
     } else {
-      pushAi('Great — you\'re all set. (Next step: I\'ll generate exam questions once the backend is connected.)');
+      pushAi('Great — you\'re all set. Ask me anything and I\'ll coach you in Exam Mode.');
     }
 
     render();
@@ -114,6 +149,12 @@
   window.ExamModeUI = {
     renderSetupQuestions,
     handleUserInput,
+    isSetupComplete,
+    appendUserMessage,
+    appendAiMessage,
+    updateMessage,
+    getHistoryForBackend,
+    getAnswers,
     reset
   };
 })();
