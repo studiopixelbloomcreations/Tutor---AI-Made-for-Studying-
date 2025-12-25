@@ -2,6 +2,52 @@
 
 This repository contains the frontend and a minimal FastAPI backend used by the Grade 9 AI Tutor UI.
 
+## Exam Mode (new)
+
+Backend endpoints (FastAPI):
+- POST /exam-mode/start → initialize a session with answers to setup questions
+- POST /exam-mode/fetch-papers → load papers for subject/term
+- POST /exam-mode/ask-question → get a random question
+- POST /exam-mode/evaluate → evaluate an answer and get teaching feedback
+
+Folder structure additions:
+- exam_mode/
+  - exam_routes.py (API routes)
+  - exam_service.py (in-memory session + logic)
+  - exam_models.py (Pydantic models)
+  - exam_utils.py (scraper mock, helpers)
+- ExamMode/
+  - index.html (standalone React UI)
+
+Run locally:
+1. Install deps and start backend
+   powershell
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r requirements.txt
+   uvicorn main:app --reload --host 127.0.0.1 --port 8000
+
+2. Open Exam Mode UI
+   - Option A: http://127.0.0.1:8000/app/ExamMode/index.html (served by FastAPI)
+   - Option B: Serve statically
+     powershell
+     python -m http.server 5500
+     open http://127.0.0.1:5500/ExamMode/index.html
+
+Trigger phrases (client/UI):
+- "Prepare me for my third exam"
+- "I want to practice for my exam"
+
+Initial setup questions (client collects and sends to /exam-mode/start):
+- Are you preparing for a real exam or just practicing for one?
+- Which term test are you getting ready for? (First term, Second term, Third term)
+- Which subject are you planning to study? (Maths, Science, English, etc.)
+
+Notes:
+- Scraper is mocked (papers.wiki.com) in exam_utils.scrape_papers; replace with real scraper if available.
+- State is kept in-memory per process; for production, back with Redis or a DB and auth tokens.
+- Gamification: points, streak, badges, readiness % are returned in responses to support UI.
+
 This README describes how to run the interface locally for testing (including a demo/mock mode) and how to share it with family/teachers for evaluation without changing any AI model code.
 
 ## Quick local smoke test (frontend + mock backend)

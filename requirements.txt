@@ -11,3 +11,5 @@ pyttsx3
 pytesseract
 pillow
 # note-friendly dependency for audio conversion guidance is ffmpeg (external), no pip package needed
+beautifulsoup4
+lxml
