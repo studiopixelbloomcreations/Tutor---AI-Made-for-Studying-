@@ -440,6 +440,11 @@
 
     try {
       if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
+        if(!window.ExamModeUI){
+          try { toast('Exam Mode UI is not ready. Open index.html and hard refresh (Ctrl+F5).',{duration:8000}); } catch (e) {}
+          return;
+        }
+
         inputBox.value='';
         if(micBtn) micBtn.classList.remove('hidden');
         if(sendBtn) sendBtn.classList.remove('show');
@@ -457,7 +462,7 @@
             if(handleUserInputFn) handleUserInputFn(text);
             else {
               console.error('ExamModeUI.handleUserInput missing');
-              try { toast('Exam Mode UI is not ready (refresh the page).',{duration:5000}); } catch (e) {}
+              try { toast('Exam Mode UI is not ready. Open index.html and hard refresh (Ctrl+F5).',{duration:8000}); } catch (e) {}
             }
             return;
           }
