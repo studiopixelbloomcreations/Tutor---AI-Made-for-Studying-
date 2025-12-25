@@ -295,7 +295,7 @@
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
       if (messagesEl) messagesEl.style.display = 'none';
-      if (composerEl) composerEl.style.display = 'none';
+      if (composerEl) composerEl.style.display = 'flex';
       examModeRoot.style.display = 'flex';
       try { if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions(); } catch (e) {}
     } else {
@@ -414,7 +414,21 @@
     return text.slice(0,40);
   }
 
-  async function sendMessage(){ const text=inputBox.value.trim(); if(!text) return; let chat=state.chats.find(c=>c.id===state.active); if(!chat){ createChat('New Chat'); chat=state.chats[0]; }
+  async function sendMessage(){
+    const text=inputBox.value.trim();
+    if(!text) return;
+
+    try {
+      if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
+        inputBox.value='';
+        if(micBtn) micBtn.classList.remove('hidden');
+        if(sendBtn) sendBtn.classList.remove('show');
+        if(window.ExamModeUI && window.ExamModeUI.handleUserInput) window.ExamModeUI.handleUserInput(text);
+        return;
+      }
+    } catch (e) {}
+
+    let chat=state.chats.find(c=>c.id===state.active); if(!chat){ createChat('New Chat'); chat=state.chats[0]; }
     if(chat.messages.length===0){ const t=await generateTitle(text); chat.title=t; saveChats(); renderChats(); renderActiveChat(); }
     const langTag = state.language==='Sinhala' ? '[සිංහල]' : '[English]'; chat.messages.push({role:'user',content:langTag+' '+text}); appendMessage('user',langTag+' '+text); saveChats(); inputBox.value=''; if(micBtn) micBtn.classList.remove('hidden'); if(sendBtn) sendBtn.classList.remove('show'); chat.messages.push({role:'ai',content:'Thinking…'}); appendMessage('ai','Thinking…'); saveChats(); renderChats(); emitProgressEvent('g9:chat_context', { chatId: state.active, subject: state.subject });
     emitProgressEvent('g9:user_message', { chatId: state.active, subject: state.subject, text });

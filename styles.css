@@ -844,9 +844,24 @@ body {
    min-height: 0;
    flex: 1;
    display: flex;
-   align-items: flex-start;
-   justify-content: center;
+   flex-direction: column;
+   align-items: center;
+   justify-content: flex-start;
    padding: 18px 12px;
+ }
+
+ .exam-mode-header{
+   width: min(720px, 100%);
+   padding: 0 6px;
+ }
+
+ .exam-mode-messages{
+   width: min(720px, 100%);
+   margin-top: 12px;
+   padding: 10px 6px;
+   border-radius: 22px;
+   border: 1px solid rgba(255,255,255,0.14);
+   background: rgba(255,255,255,0.04);
  }
 
  .exam-mode-card{
@@ -874,6 +889,40 @@ body {
    margin-top: 14px;
    padding-left: 18px;
    line-height: 1.5;
+ }
+
+ .exam-mode-current-question{
+   margin-top: 14px;
+   padding: 12px 12px;
+   border-radius: 16px;
+   background: rgba(255,255,255,0.08);
+   border: 1px solid rgba(255,255,255,0.14);
+   font-weight: 750;
+ }
+
+ .exam-mode-summary{
+   margin-top: 14px;
+   padding: 12px 12px;
+   border-radius: 16px;
+   background: rgba(255,255,255,0.06);
+   border: 1px solid rgba(255,255,255,0.12);
+ }
+
+ .exam-mode-summary-title{
+   font-size: 12px;
+   letter-spacing: 0.12em;
+   opacity: 0.85;
+ }
+
+ .exam-mode-summary-list{
+   margin-top: 10px;
+   display: grid;
+   gap: 8px;
+ }
+
+ .exam-mode-summary-row{
+   font-size: 13px;
+   opacity: 0.95;
  }
 
 .badges-content {
