@@ -629,6 +629,13 @@
 
   // Show welcome panel when no messages
   function checkWelcomePanel() {
+    try {
+      if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
+        if (welcomePanel) welcomePanel.style.display = 'none';
+        if (messagesEl) messagesEl.style.display = 'flex';
+        return;
+      }
+    } catch (e) {}
     if (messagesEl && welcomePanel) {
       if (messagesEl.children.length === 0) {
         welcomePanel.style.display = 'flex';

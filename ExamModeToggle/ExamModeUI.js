@@ -11,7 +11,6 @@
   let convo = [];
 
   function ensureRoot(){
-    if(rootEl) return rootEl;
     rootEl = document.getElementById('messages');
     return rootEl;
   }
@@ -119,6 +118,7 @@
     step = 0;
     answers = { intent: '', term: '', subject: '' };
     convo = [];
+    rootEl = null;
     const root = ensureRoot();
     if(root) root.innerHTML = '';
   }
