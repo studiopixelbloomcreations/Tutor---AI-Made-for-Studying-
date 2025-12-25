@@ -322,6 +322,17 @@
         window.ExamModeContext.subscribe(setExamModeUI);
       }
     } catch (e) {}
+
+    try {
+      if(examModeToggleMount && (!window.ExamModeToggle || !window.ExamModeContext || !window.ExamModeUI)){
+        console.error('Exam Mode scripts missing:', {
+          hasExamModeToggle: !!window.ExamModeToggle,
+          hasExamModeContext: !!window.ExamModeContext,
+          hasExamModeUI: !!window.ExamModeUI
+        });
+        toast('Exam Mode scripts did not load. Make sure you are opening index.html (not index_v2.html) and hard refresh (Ctrl+F5).',{duration:8000});
+      }
+    } catch (e) {}
   }
 
   function detectExamModeTrigger(text){
