@@ -12,7 +12,7 @@
 
   function ensureRoot(){
     if(rootEl) return rootEl;
-    rootEl = document.getElementById('examModeRoot');
+    rootEl = document.getElementById('messages');
     return rootEl;
   }
 
@@ -40,37 +40,14 @@
 
     root.innerHTML = '';
 
-    const header = document.createElement('div');
-    header.className = 'exam-mode-header';
-
-    const title = document.createElement('div');
-    title.className = 'exam-mode-title';
-    title.textContent = 'Exam Mode';
-
-    const subtitle = document.createElement('div');
-    subtitle.className = 'exam-mode-subtitle';
-    subtitle.textContent = step < questions.length
-      ? ('Setup: question ' + (step + 1) + ' of ' + questions.length)
-      : 'Setup complete.';
-
-    header.appendChild(title);
-    header.appendChild(subtitle);
-
-    const msgs = document.createElement('div');
-    msgs.className = 'messages exam-mode-messages';
-    msgs.setAttribute('role', 'log');
-    msgs.setAttribute('aria-live', 'polite');
-
     convo.forEach((m) => {
       const el = document.createElement('div');
       el.className = 'msg ' + (m.role === 'user' ? 'user' : 'ai') + ' show';
       el.textContent = m.text;
-      msgs.appendChild(el);
+      root.appendChild(el);
     });
 
-    root.appendChild(header);
-    root.appendChild(msgs);
-    try { msgs.scrollTop = msgs.scrollHeight; } catch (e) {}
+    try { root.scrollTop = root.scrollHeight; } catch (e) {}
   }
 
   function pushAi(text){

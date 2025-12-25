@@ -30,6 +30,7 @@
   const badgesContent = document.getElementById('badges-content');
   const examModeToggleMount = document.getElementById('examModeToggleMount');
   const examModeRoot = document.getElementById('examModeRoot');
+  let examModePrevActiveChat = null;
   
 
   // restore state
@@ -289,26 +290,31 @@
   function toast(msg,opts={duration:4200}){ if(!toasts) return; const d=document.createElement('div'); d.className='toast'; d.textContent=msg; toasts.appendChild(d); setTimeout(()=>{ d.style.opacity='0'; d.style.transform='translateY(10px)'; setTimeout(()=>d.remove(),300); }, opts.duration); }
 
   function setExamModeUI(enabled){
-    if(!examModeRoot) return;
     if(enabled){
       if (badgesTab) badgesTab.classList.remove('active');
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
-      if (messagesEl) messagesEl.style.display = 'none';
+      if (messagesEl) messagesEl.style.display = 'flex';
       if (composerEl) composerEl.style.display = 'flex';
-      examModeRoot.style.display = 'flex';
+      if (examModeRoot) examModeRoot.style.display = 'none';
       try {
+        examModePrevActiveChat = state.active;
         if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset();
         if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions();
       } catch (e) {}
     } else {
-      examModeRoot.style.display = 'none';
+      if (examModeRoot) examModeRoot.style.display = 'none';
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
       if (composerEl) composerEl.style.display = 'flex';
       if (badgesTab && badgesTab.classList.contains('active')){
         if (badgesContent) badgesContent.style.display = 'flex';
       } else {
-        checkWelcomePanel();
+        try {
+          if(examModePrevActiveChat !== null) state.active = examModePrevActiveChat;
+          renderActiveChat();
+        } catch (e) {
+          checkWelcomePanel();
+        }
       }
     }
   }
