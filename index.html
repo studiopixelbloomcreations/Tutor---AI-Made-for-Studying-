@@ -351,10 +351,8 @@
           <i data-lucide="award"></i>
           <span>Badges</span>
         </button>
+        <div id="examModeToggleMount"></div>
         <div class="profile-options">
-          <button class="profile-pill" aria-label="General subject">
-            <span class="profile-pill-text">General</span>
-          </button>
           <button class="profile-pill active" aria-label="Alex profile">
             <span class="profile-pill-icon"><i data-lucide="user"></i></span>
             <span class="profile-pill-text">Alex</span>
@@ -368,6 +366,7 @@
       <div class="liquidGlass-tint"></div>
       <div class="liquidGlass-shine"></div>
       <div class="liquidGlass-content">
+        <div id="examModeRoot" class="exam-mode-root" style="display: none;"></div>
         <div class="welcome-panel" id="welcomePanel">
           <div class="welcome-message">Welcome back, Alex! 👋</div>
           <div class="welcome-description">I'm your AI Study Tutor, here to help you learn and understand General. Ask
@@ -502,6 +501,9 @@
   <script src="settings.js"></script>
   <script src="account.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="ExamModeToggle/ExamModeContext.js"></script>
+  <script src="ExamModeToggle/ExamModeUI.js"></script>
+  <script src="ExamModeToggle/ExamModeToggle.js"></script>
   <script src="script.js"></script>
   <svg style="display:none">
     <defs>

@@ -754,6 +754,64 @@ body {
   gap: 12px
 }
 
+ .exam-mode-toggle{
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 6px 10px;
+   border-radius: 999px;
+   background: rgba(255,255,255,0.10);
+   border: 1px solid rgba(255,255,255,0.18);
+   backdrop-filter: blur(10px);
+ }
+
+ .exam-mode-toggle-label{
+   font-size: 13px;
+   font-weight: 700;
+   letter-spacing: 0.2px;
+   color: var(--text);
+ }
+
+ .exam-mode-switch{
+   width: 44px;
+   height: 24px;
+   border-radius: 999px;
+   border: 1px solid rgba(255,255,255,0.22);
+   background: rgba(255,255,255,0.10);
+   position: relative;
+   cursor: pointer;
+   padding: 0;
+   transition: all 220ms cubic-bezier(.2,.9,.2,1);
+ }
+
+ .exam-mode-switch:focus{
+   outline: 2px solid var(--accent1);
+   outline-offset: 2px;
+ }
+
+ .exam-mode-switch.on{
+   background: linear-gradient(90deg, rgba(6,182,212,0.85), rgba(139,92,246,0.85));
+   border-color: rgba(255,255,255,0.35);
+   box-shadow: 0 10px 30px rgba(99,102,241,0.25);
+ }
+
+ .exam-mode-switch-knob{
+   position: absolute;
+   top: 50%;
+   left: 3px;
+   width: 18px;
+   height: 18px;
+   border-radius: 999px;
+   transform: translateY(-50%);
+   background: rgba(255,255,255,0.92);
+   box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+   transition: transform 220ms cubic-bezier(.2,.9,.2,1);
+ }
+
+ .exam-mode-switch.on .exam-mode-switch-knob{
+   transform: translate(20px, -50%);
+ }
+
 .header-tab {
   display: flex;
   align-items: center;
@@ -779,6 +837,44 @@ body {
   border-color: var(--primary);
   color: white;
 }
+
+ .exam-mode-root{
+   margin-top: 10px;
+   width: 100%;
+   min-height: 0;
+   flex: 1;
+   display: flex;
+   align-items: flex-start;
+   justify-content: center;
+   padding: 18px 12px;
+ }
+
+ .exam-mode-card{
+   width: min(720px, 100%);
+   border-radius: 22px;
+   border: 1px solid rgba(255,255,255,0.16);
+   background: rgba(255,255,255,0.08);
+   box-shadow: 0 30px 120px rgba(0,0,0,0.12);
+   padding: 18px 18px;
+ }
+
+ .exam-mode-title{
+   font-size: 18px;
+   font-weight: 900;
+   letter-spacing: 0.2px;
+ }
+
+ .exam-mode-subtitle{
+   margin-top: 6px;
+   font-size: 13px;
+   opacity: 0.9;
+ }
+
+ .exam-mode-questions{
+   margin-top: 14px;
+   padding-left: 18px;
+   line-height: 1.5;
+ }
 
 .badges-content {
   padding: 24px;

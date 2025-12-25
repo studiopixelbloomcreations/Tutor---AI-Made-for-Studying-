@@ -4,11 +4,24 @@ This repository contains the frontend and a minimal FastAPI backend used by the 
 
 ## Exam Mode (new)
 
-Backend endpoints (FastAPI):
-- POST /exam-mode/start → initialize a session with answers to setup questions
-- POST /exam-mode/fetch-papers → load papers for subject/term
-- POST /exam-mode/ask-question → get a random question
-- POST /exam-mode/evaluate → evaluate an answer and get teaching feedback
+Frontend usage:
+- Toggle **Exam Mode** from the header switch (default is OFF).
+- When ON, the app shows the Exam Mode placeholder UI with 3 setup questions.
+- When OFF, the normal TutorAI chat UI returns.
+
+Automatic trigger (from the chat input):
+- If you type phrases like `Prepare me for my exam` or `Enable exam mode`, the app automatically switches Exam Mode ON.
+
+Setup questions shown in Exam Mode:
+- Are you preparing for a real exam or just practicing?
+- Which term test are you getting ready for? (First, Second, Third)
+- Which subject are you planning to study? (Maths, Science, English, etc.)
+
+Backend endpoints (FastAPI) planned for wiring later:
+- POST /exam-mode/start
+- POST /exam-mode/fetch-papers
+- POST /exam-mode/ask-question
+- POST /exam-mode/evaluate
 
 Folder structure additions:
 - exam_mode/
@@ -16,32 +29,10 @@ Folder structure additions:
   - exam_service.py (in-memory session + logic)
   - exam_models.py (Pydantic models)
   - exam_utils.py (scraper mock, helpers)
-- ExamMode/
-  - index.html (standalone React UI)
-
-Run locally:
-1. Install deps and start backend
-   powershell
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   uvicorn main:app --reload --host 127.0.0.1 --port 8000
-
-2. Open Exam Mode UI
-   - Option A: http://127.0.0.1:8000/app/ExamMode/index.html (served by FastAPI)
-   - Option B: Serve statically
-     powershell
-     python -m http.server 5500
-     open http://127.0.0.1:5500/ExamMode/index.html
-
-Trigger phrases (client/UI):
-- "Prepare me for my third exam"
-- "I want to practice for my exam"
-
-Initial setup questions (client collects and sends to /exam-mode/start):
-- Are you preparing for a real exam or just practicing for one?
-- Which term test are you getting ready for? (First term, Second term, Third term)
-- Which subject are you planning to study? (Maths, Science, English, etc.)
+- ExamModeToggle/
+  - ExamModeContext.js (stores Exam Mode on/off)
+  - ExamModeToggle.js (header switch component)
+  - ExamModeUI.js (Exam Mode placeholder UI)
 
 Notes:
 - Scraper is mocked (papers.wiki.com) in exam_utils.scrape_papers; replace with real scraper if available.

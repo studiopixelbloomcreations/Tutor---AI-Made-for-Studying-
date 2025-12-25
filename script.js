@@ -28,6 +28,8 @@
   const welcomePanel = document.getElementById('welcomePanel');
   const badgesTab = document.getElementById('badgesTab');
   const badgesContent = document.getElementById('badges-content');
+  const examModeToggleMount = document.getElementById('examModeToggleMount');
+  const examModeRoot = document.getElementById('examModeRoot');
   
 
   // restore state
@@ -240,6 +242,11 @@
 
   if (badgesTab) {
     badgesTab.addEventListener('click', () => {
+      try {
+        if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.setEnabled){
+          if(window.ExamModeContext.getEnabled()) window.ExamModeContext.setEnabled(false);
+        }
+      } catch (e) {}
       // Toggle badges tab active state
       const isActive = badgesTab.classList.contains('active');
       
@@ -280,6 +287,52 @@
 
   // Toast helper
   function toast(msg,opts={duration:4200}){ if(!toasts) return; const d=document.createElement('div'); d.className='toast'; d.textContent=msg; toasts.appendChild(d); setTimeout(()=>{ d.style.opacity='0'; d.style.transform='translateY(10px)'; setTimeout(()=>d.remove(),300); }, opts.duration); }
+
+  function setExamModeUI(enabled){
+    if(!examModeRoot) return;
+    if(enabled){
+      if (badgesTab) badgesTab.classList.remove('active');
+      if (badgesContent) badgesContent.style.display = 'none';
+      if (welcomePanel) welcomePanel.style.display = 'none';
+      if (messagesEl) messagesEl.style.display = 'none';
+      if (composerEl) composerEl.style.display = 'none';
+      examModeRoot.style.display = 'flex';
+      try { if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions(); } catch (e) {}
+    } else {
+      examModeRoot.style.display = 'none';
+      try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
+      if (composerEl) composerEl.style.display = 'flex';
+      if (badgesTab && badgesTab.classList.contains('active')){
+        if (badgesContent) badgesContent.style.display = 'flex';
+      } else {
+        checkWelcomePanel();
+      }
+    }
+  }
+
+  function initExamMode(){
+    try {
+      if(window.ExamModeToggle && window.ExamModeToggle.mount && examModeToggleMount){
+        window.ExamModeToggle.mount(examModeToggleMount);
+      }
+      if(window.ExamModeContext && window.ExamModeContext.subscribe){
+        window.ExamModeContext.subscribe(setExamModeUI);
+      }
+    } catch (e) {}
+  }
+
+  function detectExamModeTrigger(text){
+    const t = String(text || '').toLowerCase();
+    if(!t) return false;
+    const phrases = [
+      'prepare me for my exam',
+      'enable exam mode',
+      'exam mode',
+      'prepare me for my third exam',
+      'i want to practice for my exam'
+    ];
+    return phrases.some(p => t.includes(p));
+  }
 
   // Account wiring (Google identity + logout)
   try {
@@ -443,6 +496,13 @@
         micBtn.classList.remove('hidden');
         sendBtn.classList.remove('show');
       }
+      try {
+        if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.setEnabled){
+          if(!window.ExamModeContext.getEnabled() && detectExamModeTrigger(inputBox.value)){
+            window.ExamModeContext.setEnabled(true);
+          }
+        }
+      } catch (e) {}
     });
   }
 
@@ -475,6 +535,8 @@
       }
     }
   }
+
+  initExamMode();
 
 
   // Settings functionality
