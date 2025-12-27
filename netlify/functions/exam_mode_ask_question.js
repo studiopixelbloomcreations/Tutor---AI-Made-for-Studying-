@@ -106,7 +106,15 @@ exports.handler = async function handler(event) {
 
   const pdfLinks = Array.isArray(sess.pdf_links) ? sess.pdf_links : [];
   if (!sess.papers_loaded || pdfLinks.length === 0) {
-    return json(400, { error: 'Papers not loaded. Call /exam-mode/fetch-papers first.' });
+    return json(200, {
+      session_id: sessionId,
+      question: {
+        id: 'no_papers_found',
+        text: `I couldn't find matching past-paper PDFs for your selection (Subject: ${sess.subject}, Term: ${sess.term}).\n\n1) Please try a simpler subject name (e.g. "Maths", "Science", "English").\n2) And a clear term ("First", "Second", "Third").\n\nFor now, here is a practice exam-style question:\n\nWrite 3 key points you remember from the ${sess.subject} textbook chapter you studied most recently, and I will turn them into an exam question.`,
+        source_url: null
+      },
+      paper_count: pdfLinks.length
+    });
   }
 
   // If we already extracted questions in this warm instance, reuse
