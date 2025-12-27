@@ -31,6 +31,21 @@
   to = "/.netlify/functions/check_answer"
   status = 200
 
+[[redirects]]
+  from = "/exam-mode/start"
+  to = "/.netlify/functions/exam_mode_start"
+  status = 200
+
+[[redirects]]
+  from = "/exam-mode/fetch-papers"
+  to = "/.netlify/functions/exam_mode_fetch_papers"
+  status = 200
+
+[[redirects]]
+  from = "/exam-mode/ask-question"
+  to = "/.netlify/functions/exam_mode_ask_question"
+  status = 200
+
 # Basic headers for HTML/CSS/JS
 [[headers]]
   for = "/*"
