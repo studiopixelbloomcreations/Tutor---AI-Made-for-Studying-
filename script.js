@@ -360,6 +360,29 @@
     return phrases.some(p => t.includes(p));
   }
 
+  async function safeReadJson(res){
+    try {
+      return await res.json();
+    } catch (e) {
+      try {
+        const t = await res.text();
+        return { raw: t };
+      } catch (e2) {
+        return {};
+      }
+    }
+  }
+
+  function getBackendErrorMessage(data){
+    if(!data) return 'Unknown error';
+    if(typeof data === 'string') return data;
+    if(data.detail) return String(data.detail);
+    if(data.error) return String(data.error);
+    if(data.message) return String(data.message);
+    if(data.raw) return String(data.raw);
+    try { return JSON.stringify(data); } catch (e) { return 'Unknown error'; }
+  }
+
   // Account wiring (Google identity + logout)
   try {
     if(window.Account && window.Account.initAccount){
@@ -488,8 +511,15 @@
                 const startRes = await (window.Api && window.Api.apiFetch
                   ? window.Api.apiFetch('/exam-mode/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(startBody) })
                   : fetch('/exam-mode/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(startBody) }));
-                const startData = await startRes.json();
+                const startData = await safeReadJson(startRes);
+                if(!startRes.ok){
+                  throw new Error('Exam Mode start failed: ' + getBackendErrorMessage(startData));
+                }
                 if(startData && startData.session_id) examModeSessionId = startData.session_id;
+
+                if(!examModeSessionId){
+                  throw new Error('Exam Mode start failed: missing session_id');
+                }
 
                 const fetchBody = {
                   session_id: examModeSessionId,
@@ -499,14 +529,20 @@
                 const fetchRes = await (window.Api && window.Api.apiFetch
                   ? window.Api.apiFetch('/exam-mode/fetch-papers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fetchBody) })
                   : fetch('/exam-mode/fetch-papers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fetchBody) }));
-                const fetchData = await fetchRes.json();
-                if(fetchRes.ok) examModePapersLoaded = true;
+                const fetchData = await safeReadJson(fetchRes);
+                if(!fetchRes.ok){
+                  throw new Error('Exam Mode fetch-papers failed: ' + getBackendErrorMessage(fetchData));
+                }
+                examModePapersLoaded = true;
 
                 const askBody = { session_id: examModeSessionId };
                 const askRes = await (window.Api && window.Api.apiFetch
                   ? window.Api.apiFetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) })
                   : fetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) }));
-                const askData = await askRes.json();
+                const askData = await safeReadJson(askRes);
+                if(!askRes.ok){
+                  throw new Error('Exam Mode ask-question failed: ' + getBackendErrorMessage(askData));
+                }
 
                 const qText = (askData && askData.question && askData.question.text)
                   ? String(askData.question.text)
@@ -524,12 +560,14 @@
                 }
               }
             } catch (e) {
+              const msg = (e && e.message) ? String(e.message) : 'Exam Mode paper scan failed.';
               console.error('Exam Mode paper scan failed:', e);
               try {
                 if(window.ExamModeUI && typeof window.ExamModeUI.appendAiMessage === 'function'){
-                  window.ExamModeUI.appendAiMessage('⚠️ I could not scan past papers right now. Please try again or choose a different subject/term.');
+                  window.ExamModeUI.appendAiMessage('⚠️ ' + msg);
                 }
               } catch (e2) {}
+              try { toast(msg,{duration:8000}); } catch (e3) {}
             }
 
             return;
