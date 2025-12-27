@@ -296,7 +296,7 @@
       if (badgesTab) badgesTab.classList.remove('active');
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
-      if (messagesEl) messagesEl.style.display = '';
+      if (messagesEl) messagesEl.style.display = 'block';
       if (composerEl) composerEl.style.display = '';
       if (examModeRoot) examModeRoot.style.display = 'none';
       try {
@@ -304,6 +304,7 @@
         examModePapersLoaded = false;
         if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset();
         if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions();
+        checkWelcomePanel();
       } catch (e) {}
     } else {
       if (examModeRoot) examModeRoot.style.display = 'none';
@@ -485,8 +486,13 @@
     try {
       if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
         if(!window.ExamModeUI){
-          try { toast('Exam Mode UI is not ready. Open index.html and hard refresh (Ctrl+F5).',{duration:8000}); } catch (e) {}
-          return;
+          try { toast('Exam Mode UI did not load — switching back to normal chat. Hard refresh (Ctrl+F5) to fix Exam Mode.',{duration:9000}); } catch (e) {}
+          try {
+            if(window.ExamModeContext && window.ExamModeContext.setEnabled){
+              window.ExamModeContext.setEnabled(false);
+            }
+          } catch (e2) {}
+          // Continue with normal chat send below.
         }
 
         inputBox.value='';
@@ -753,7 +759,7 @@
     try {
       if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
         if (welcomePanel) welcomePanel.style.display = 'none';
-        if (messagesEl) messagesEl.style.display = '';
+        if (messagesEl) messagesEl.style.display = 'block';
         return;
       }
     } catch (e) {}
