@@ -14,6 +14,13 @@ function json(statusCode, obj) {
   };
 }
 
+function jinaProxyUrl(url) {
+  const u = String(url || '');
+  if (u.startsWith('https://')) return 'https://r.jina.ai/https://' + u.slice('https://'.length);
+  if (u.startsWith('http://')) return 'https://r.jina.ai/http://' + u.slice('http://'.length);
+  return null;
+}
+
 global.__EXAM_MODE_SESSIONS__ = global.__EXAM_MODE_SESSIONS__ || new Map();
 const SESSIONS = global.__EXAM_MODE_SESSIONS__;
 
@@ -75,10 +82,49 @@ function extractNumberedQuestions(text) {
 }
 
 async function fetchPdfText(url) {
-  const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
-  const buf = Buffer.from(res.data);
-  const data = await pdfParse(buf);
-  return String((data && data.text) || '');
+  const headers = {
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'accept': 'application/pdf,*/*',
+    'referer': 'https://pastpapers.wiki/'
+  };
+
+  const candidates = [url];
+  const proxy = jinaProxyUrl(url);
+  if (proxy) candidates.push(proxy);
+
+  let lastErr = null;
+  for (const u of candidates) {
+    try {
+      const res = await axios.get(u, {
+        responseType: 'arraybuffer',
+        timeout: 60000,
+        headers,
+        validateStatus: () => true
+      });
+
+      if (!res || typeof res.status !== 'number') throw new Error('BAD_RESPONSE');
+      if (res.status === 403 || res.status === 429) {
+        const err = new Error('HTTP_' + res.status);
+        err.status = res.status;
+        err.url = u;
+        throw err;
+      }
+      if (res.status >= 400) {
+        const err = new Error('HTTP_' + res.status);
+        err.status = res.status;
+        err.url = u;
+        throw err;
+      }
+
+      const buf = Buffer.from(res.data);
+      const data = await pdfParse(buf);
+      return String((data && data.text) || '');
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw lastErr || new Error('PDF_FETCH_FAILED');
 }
 
 exports.handler = async function handler(event) {

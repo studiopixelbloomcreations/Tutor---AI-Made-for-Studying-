@@ -101,16 +101,30 @@ function isProbablyPdf(u) {
   return ul.includes('.pdf');
 }
 
+function jinaProxyUrl(url) {
+  const u = String(url || '');
+  if (u.startsWith('https://')) return 'https://r.jina.ai/https://' + u.slice('https://'.length);
+  if (u.startsWith('http://')) return 'https://r.jina.ai/http://' + u.slice('http://'.length);
+  return null;
+}
+
 async function fetchHtml(url) {
   const timeoutMs = 20000;
   const headers = {
-    'user-agent': 'Mozilla/5.0 (Netlify Functions) ExamMode/1.0'
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language': 'en-US,en;q=0.9',
+    'referer': 'https://pastpapers.wiki/'
   };
 
   let lastErr = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await axios.get(url, {
+      const direct = (attempt === 0);
+      const proxy = jinaProxyUrl(url);
+      const targetUrl = direct ? url : (proxy || url);
+
+      const res = await axios.get(targetUrl, {
         timeout: timeoutMs,
         headers,
         maxContentLength: 2 * 1024 * 1024,
@@ -119,10 +133,18 @@ async function fetchHtml(url) {
       });
 
       if (!res || typeof res.status !== 'number') throw new Error('BAD_RESPONSE');
+      if (res.status === 403 || res.status === 429) {
+        const err = new Error('HTTP_' + res.status);
+        err.status = res.status;
+        err.url = targetUrl;
+        err.bodySnippet = typeof res.data === 'string' ? res.data.slice(0, 300) : null;
+        throw err;
+      }
+
       if (res.status >= 400) {
         const err = new Error('HTTP_' + res.status);
         err.status = res.status;
-        err.url = url;
+        err.url = targetUrl;
         err.bodySnippet = typeof res.data === 'string' ? res.data.slice(0, 300) : null;
         throw err;
       }
