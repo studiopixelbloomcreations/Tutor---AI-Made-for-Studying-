@@ -11,7 +11,7 @@
   let convo = [];
 
   function ensureRoot(){
-    rootEl = document.getElementById('messages');
+    rootEl = document.getElementById('examModeRoot') || document.getElementById('messages');
     return rootEl;
   }
 

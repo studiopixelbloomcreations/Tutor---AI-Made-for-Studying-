@@ -294,9 +294,9 @@
       if (badgesTab) badgesTab.classList.remove('active');
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
-      if (messagesEl) messagesEl.style.display = 'flex';
+      if (messagesEl) messagesEl.style.display = 'none';
       if (composerEl) composerEl.style.display = 'flex';
-      if (examModeRoot) examModeRoot.style.display = 'none';
+      if (examModeRoot) examModeRoot.style.display = 'flex';
       try {
         examModePrevActiveChat = state.active;
         if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset();
@@ -306,6 +306,7 @@
       if (examModeRoot) examModeRoot.style.display = 'none';
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
       if (composerEl) composerEl.style.display = 'flex';
+      if (messagesEl) messagesEl.style.display = 'flex';
       if (badgesTab && badgesTab.classList.contains('active')){
         if (badgesContent) badgesContent.style.display = 'flex';
       } else {
