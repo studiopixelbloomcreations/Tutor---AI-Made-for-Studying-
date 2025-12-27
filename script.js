@@ -68,6 +68,8 @@
       iconEl.innerHTML = mode === 'dark' ? '<i data-lucide="moon"></i>' : '<i data-lucide="sun"></i>';
       try { if(window.lucide && window.lucide.createIcons) window.lucide.createIcons(); } catch (e) {}
     }
+    if(textEl) textEl.textContent = state.theme.charAt(0).toUpperCase()+state.theme.slice(1)+' Mode';
+  }
 
   function normalizeExamTerm(raw){
     const t = String(raw || '').trim().toLowerCase();
@@ -90,8 +92,6 @@
     if(/\b(civics|civic)\b/i.test(t)) return 'Civics';
     if(/\b(health)\b/i.test(t)) return 'Health';
     return '';
-  }
-    if(textEl) textEl.textContent = state.theme.charAt(0).toUpperCase()+state.theme.slice(1)+' Mode';
   }
 
   function setTheme(pref){
