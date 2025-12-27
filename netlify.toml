@@ -47,6 +47,11 @@
   status = 200
 
 [[redirects]]
+  from = "/exam-mode/upload-pdf"
+  to = "/.netlify/functions/exam_mode_upload_pdf"
+  status = 200
+
+[[redirects]]
   from = "/gamification/get_badges"
   to = "/.netlify/functions/gamification_get_badges"
   status = 200

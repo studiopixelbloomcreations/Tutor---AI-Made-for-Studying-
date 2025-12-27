@@ -20,6 +20,57 @@
     const { elements, toast, appendMessage, state } = ctx;
     const { uploadBtn, fileInput } = elements;
 
+    async function handleExamModePdfUpload(file){
+      try {
+        const enabled = !!(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled());
+        if(!enabled) return false;
+
+        const sessionId = window.__EXAM_MODE_SESSION_ID__ ? String(window.__EXAM_MODE_SESSION_ID__) : '';
+        if(!sessionId) return false;
+
+        const base64 = await new Promise((resolve, reject)=>{
+          const r = new FileReader();
+          r.onerror = () => reject(new Error('READ_FAILED'));
+          r.onload = () => {
+            const out = String(r.result || '');
+            const comma = out.indexOf(',');
+            resolve(comma >= 0 ? out.slice(comma + 1) : out);
+          };
+          r.readAsDataURL(file);
+        });
+
+        const subject = (window.ExamModeUI && window.ExamModeUI.getAnswers) ? (window.ExamModeUI.getAnswers().subject || state.subject) : (state.subject || 'General');
+        const term = (window.ExamModeUI && window.ExamModeUI.getAnswers) ? (window.ExamModeUI.getAnswers().term || 'Third') : 'Third';
+
+        const upRes = await window.Api.apiFetch('/exam-mode/upload-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, pdf_base64: base64, subject, term })
+        });
+        if(!upRes.ok) throw new Error('HTTP_' + upRes.status);
+
+        // Ask first question
+        const askRes = await window.Api.apiFetch('/exam-mode/ask-question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, subject, term })
+        });
+        if(!askRes.ok) throw new Error('HTTP_' + askRes.status);
+        const askData = await askRes.json();
+
+        const text = (askData && askData.question && askData.question.text) ? String(askData.question.text) : 'I could not extract a question from that PDF.';
+        if(window.ExamModeUI && window.ExamModeUI.appendAiMessage){
+          window.ExamModeUI.appendAiMessage('✅ PDF loaded. Here is your first question:\n\n' + text);
+        } else {
+          appendMessage('ai', '✅ PDF loaded. Here is your first question:\n\n' + text);
+        }
+
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
     function isImage(file){
       const t = String(file && file.type || '').toLowerCase();
       if(t.startsWith('image/')) return true;
@@ -42,6 +93,12 @@
         }
 
         appendMessage('ai', (isImage(f) ? '🖼️ Uploaded: ' : '📄 Uploaded: ') + f.name);
+
+        // Exam Mode: PDF upload becomes the paper source for real question extraction
+        if(!isImage(f) && String(f.name || '').toLowerCase().endsWith('.pdf')){
+          const handled = await handleExamModePdfUpload(f);
+          if(handled) continue;
+        }
 
         // Images: run OCR then feed extracted text into chat
         if(isImage(f)){

@@ -333,6 +333,7 @@
     } else {
       if (examModeRoot) examModeRoot.style.display = 'none';
       examModeSessionId = null;
+      try { window.__EXAM_MODE_SESSION_ID__ = null; } catch (e) {}
       examModePapersLoaded = false;
       examModePdfLinks = [];
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
@@ -601,6 +602,7 @@
                   throw new Error('Exam Mode start failed (HTTP ' + startRes.status + '): ' + getBackendErrorMessage(startData));
                 }
                 if(startData && startData.session_id) examModeSessionId = startData.session_id;
+                try { window.__EXAM_MODE_SESSION_ID__ = examModeSessionId; } catch (e) {}
 
                 if(!examModeSessionId){
                   throw new Error('Exam Mode start failed: missing session_id');

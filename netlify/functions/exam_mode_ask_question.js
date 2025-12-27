@@ -150,6 +150,12 @@ exports.handler = async function handler(event) {
     sess.papers_loaded = true;
   }
 
+  // If we already have extracted questions (e.g. from uploaded PDFs), serve them immediately.
+  if (Array.isArray(sess.questions) && sess.questions.length > 0) {
+    const q = pickRandom(sess.questions);
+    return json(200, { session_id: sessionId, question: q });
+  }
+
   const pdfLinks = Array.isArray(sess.pdf_links) ? sess.pdf_links : [];
   if (!sess.papers_loaded || pdfLinks.length === 0) {
     return json(200, {
@@ -161,12 +167,6 @@ exports.handler = async function handler(event) {
       },
       paper_count: pdfLinks.length
     });
-  }
-
-  // If we already extracted questions in this warm instance, reuse
-  if (Array.isArray(sess.questions) && sess.questions.length > 0) {
-    const q = pickRandom(sess.questions);
-    return json(200, { question: q, session_id: sessionId });
   }
 
   // Extract from up to N PDFs
