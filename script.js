@@ -378,14 +378,15 @@
 
   async function safeReadJson(res){
     try {
-      return await res.json();
-    } catch (e) {
+      const t = await res.text();
+      if(!t) return {};
       try {
-        const t = await res.text();
+        return JSON.parse(t);
+      } catch (e) {
         return { raw: t };
-      } catch (e2) {
-        return {};
       }
+    } catch (e) {
+      return {};
     }
   }
 
@@ -569,7 +570,7 @@
                   : fetch('/exam-mode/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(startBody) }));
                 const startData = await safeReadJson(startRes);
                 if(!startRes.ok){
-                  throw new Error('Exam Mode start failed: ' + getBackendErrorMessage(startData));
+                  throw new Error('Exam Mode start failed (HTTP ' + startRes.status + '): ' + getBackendErrorMessage(startData));
                 }
                 if(startData && startData.session_id) examModeSessionId = startData.session_id;
 
@@ -587,7 +588,7 @@
                   : fetch('/exam-mode/fetch-papers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fetchBody) }));
                 const fetchData = await safeReadJson(fetchRes);
                 if(!fetchRes.ok){
-                  throw new Error('Exam Mode fetch-papers failed: ' + getBackendErrorMessage(fetchData));
+                  throw new Error('Exam Mode fetch-papers failed (HTTP ' + fetchRes.status + '): ' + getBackendErrorMessage(fetchData));
                 }
                 examModePapersLoaded = true;
 
@@ -597,7 +598,7 @@
                   : fetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) }));
                 const askData = await safeReadJson(askRes);
                 if(!askRes.ok){
-                  throw new Error('Exam Mode ask-question failed: ' + getBackendErrorMessage(askData));
+                  throw new Error('Exam Mode ask-question failed (HTTP ' + askRes.status + '): ' + getBackendErrorMessage(askData));
                 }
 
                 const qText = (askData && askData.question && askData.question.text)
