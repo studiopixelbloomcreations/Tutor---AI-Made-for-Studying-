@@ -66,6 +66,12 @@ function urlHasAny(u, parts) {
   return (parts || []).some(p => p && ul.includes(String(p).toLowerCase()));
 }
 
+function urlMatchesTerm(u, termAliasesList) {
+  const ul = String(u || '').toLowerCase();
+  if (!termAliasesList || termAliasesList.length === 0) return true;
+  return termAliasesList.some(a => a && ul.includes(String(a).toLowerCase()));
+}
+
 function courseIdForSubject(subjectKey) {
   const s = String(subjectKey || '').trim().toLowerCase();
   const map = {
@@ -349,16 +355,24 @@ exports.handler = async function handler(event) {
       }
     }
 
+    // Prefer strict term filtering (First/Second/Third) when it yields results.
+    // e-thaksalawa PDFs usually include tokens like 1Term/2Term/3Term in filenames.
+    const strictTerm = (termKey && termKey !== 'unknown') ? tAliases : [];
+    const strictMatches = strictTerm.length
+      ? pdfCandidates.filter(c => c && c.url && urlMatchesTerm(c.url, strictTerm))
+      : pdfCandidates;
+
     // Sort by score desc, then take top unique
-    pdfCandidates.sort((a, b) => (b.score - a.score));
+    const ranked = strictMatches;
+    ranked.sort((a, b) => (b.score - a.score));
     const seen = new Set();
     const pdfLinks = [];
-    for (const c of pdfCandidates) {
+    for (const c of ranked) {
       if (!c || !c.url) continue;
       if (seen.has(c.url)) continue;
       seen.add(c.url);
       pdfLinks.push(c.url);
-      if (pdfLinks.length >= 6) break;
+      if (pdfLinks.length >= 25) break;
     }
 
     // Store links in session; question extraction is done in ask-question

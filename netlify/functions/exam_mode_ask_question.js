@@ -35,7 +35,8 @@ function ensureSession(sessionId, seed) {
     mode: (seed && seed.mode) ? String(seed.mode) : 'practice',
     papers_loaded: false,
     pdf_links: Array.isArray(seed && seed.pdf_links) ? seed.pdf_links : [],
-    questions: []
+    questions: [],
+    last_pdf_url: null
   };
   SESSIONS.set(sessionId, created);
   return created;
@@ -46,12 +47,23 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function pickRandomDifferent(arr, notEqualTo) {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  if (arr.length === 1) return arr[0];
+  const filtered = arr.filter(x => x && x !== notEqualTo);
+  const pool = filtered.length ? filtered : arr;
+  return pickRandom(pool);
+}
+
 function extractNumberedQuestions(text) {
   const t = String(text || '').replace(/\r/g, '');
   // Heuristic: split on lines that start with digits + dot/)
   const lines = t.split('\n');
   const questions = [];
   let current = null;
+
+  const MAX_CHARS = 900;
+  const MAX_LINES = 14;
 
   const startRe = /^\s*(\d{1,3})\s*[\).\-]\s*(.+)\s*$/;
   for (const line of lines) {
@@ -64,7 +76,9 @@ function extractNumberedQuestions(text) {
     if (current) {
       const s = line.trim();
       if (!s) continue;
-      current.text += '\n' + s;
+      if ((current.text.length + s.length) <= MAX_CHARS && (current.text.split('\n').length <= MAX_LINES)) {
+        current.text += '\n' + s;
+      }
     }
   }
   if (current && current.text.trim().length >= 15) questions.push(current);
@@ -213,25 +227,21 @@ exports.handler = async function handler(event) {
     });
   }
 
-  // Extract from up to N PDFs
-  const maxPdfs = 2;
-  const maxQuestions = 40;
-  const questions = [];
-
   try {
-    for (const url of pdfLinks.slice(0, maxPdfs)) {
-      const text = await fetchPdfText(url);
-      const qs = extractNumberedQuestions(text);
-      for (const q of qs) {
-        questions.push({
-          id: `${url}#${q.number}`,
-          text: q.text,
-          source_url: url
-        });
-        if (questions.length >= maxQuestions) break;
-      }
-      if (questions.length >= maxQuestions) break;
-    }
+    // Pick ONE paper each time, but randomize across all papers for the chosen term.
+    // Also avoid repeating the same paper consecutively.
+    const pickedPdf = pickRandomDifferent(pdfLinks, sess.last_pdf_url);
+    sess.last_pdf_url = pickedPdf;
+
+    const text = await fetchPdfText(pickedPdf);
+    const qs = extractNumberedQuestions(text)
+      .filter(q => q && q.text && q.text.length >= 20 && q.text.length <= 900);
+
+    const questions = qs.slice(0, 80).map(q => ({
+      id: `${pickedPdf}#${q.number}`,
+      text: q.text,
+      source_url: pickedPdf
+    }));
 
     // Fallback: if none parsed, return a generic question
     if (questions.length === 0) {
@@ -244,8 +254,6 @@ exports.handler = async function handler(event) {
         }
       });
     }
-
-    sess.questions = questions;
 
     const picked = pickRandom(questions);
     return json(200, { session_id: sessionId, question: picked });
