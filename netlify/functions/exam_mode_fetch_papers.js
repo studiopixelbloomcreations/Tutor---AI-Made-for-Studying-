@@ -85,6 +85,16 @@ function absoluteUrl(base, href) {
   }
 }
 
+function isProbablyHtmlPage(u) {
+  const ul = String(u || '').toLowerCase();
+  if (!ul.includes('pastpapers.wiki')) return false;
+  if (ul.endsWith('.pdf')) return false;
+  if (ul.includes('#')) return false;
+  // avoid obvious assets
+  if (ul.match(/\.(jpg|jpeg|png|gif|webp|svg|css|js)(\?|$)/)) return false;
+  return true;
+}
+
 async function fetchHtml(url) {
   const res = await axios.get(url, {
     timeout: 45000,
@@ -132,31 +142,59 @@ exports.handler = async function handler(event) {
     const subjAliases = subjectAliases(subjKey);
     const tAliases = termAliases(termKey);
 
-    // Filter likely subject pages
-    const likelySubjectPages = links.filter(u => {
-      const ul = u.toLowerCase();
-      return ul.includes('pastpapers.wiki') && (ul.includes(subjKey) || ul.includes(subjKey.replace(/\s+/g, '-')));
-    }).slice(0, 5);
+    // Filter likely subject pages (use aliases, not just exact subject key)
+    const likelySubjectPages = links
+      .filter(u => isProbablyHtmlPage(u) && urlHasAny(u, subjAliases))
+      .slice(0, 6);
 
     const candidatePages = likelySubjectPages.length ? likelySubjectPages : [seed];
 
     const pdfCandidates = [];
 
-    for (const page of candidatePages) {
-      const html = await fetchHtml(page);
+    const visitedPages = new Set();
+
+    async function scanPageForPdfs(pageUrl) {
+      if (!pageUrl || visitedPages.has(pageUrl)) return [];
+      visitedPages.add(pageUrl);
+
+      const html = await fetchHtml(pageUrl);
       const pageLinks = extractLinks(html)
-        .map(h => absoluteUrl(page, h))
+        .map(h => absoluteUrl(pageUrl, h))
         .filter(Boolean);
 
+      const discoveredChildPages = [];
       for (const u of pageLinks) {
         const ul = u.toLowerCase();
         if (!ul.includes('pastpapers.wiki')) continue;
-        if (!ul.endsWith('.pdf')) continue;
-        let score = 0;
-        if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
-        if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
-        pdfCandidates.push({ url: u, score });
+
+        if (ul.endsWith('.pdf')) {
+          let score = 0;
+          if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
+          if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
+          pdfCandidates.push({ url: u, score });
+          continue;
+        }
+
+        // queue one level deep pages that look relevant
+        if (isProbablyHtmlPage(u) && (urlHasAny(u, subjAliases) || urlHasAny(u, tAliases))) {
+          discoveredChildPages.push(u);
+        }
       }
+
+      return discoveredChildPages;
+    }
+
+    // First pass: scan candidate pages
+    let childQueue = [];
+    for (const page of candidatePages) {
+      const children = await scanPageForPdfs(page);
+      childQueue.push(...children);
+    }
+
+    // Second pass: scan a limited number of child pages
+    childQueue = Array.from(new Set(childQueue)).slice(0, 6);
+    for (const page of childQueue) {
+      await scanPageForPdfs(page);
     }
 
     // Sort by score desc, then take top unique
