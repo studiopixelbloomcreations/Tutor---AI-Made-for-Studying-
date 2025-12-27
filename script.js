@@ -393,6 +393,7 @@
   function getBackendErrorMessage(data){
     if(!data) return 'Unknown error';
     if(typeof data === 'string') return data;
+    if(typeof data === 'object' && Object.keys(data).length === 0) return 'Empty response body (endpoint may be missing)';
     if(data.detail) return String(data.detail);
     if(data.error) return String(data.error);
     if(data.message) return String(data.message);
@@ -564,6 +565,20 @@
                   subject: (setup.subject || state.subject),
                   session_id: examModeSessionId || undefined
                 };
+
+                if(window.location && window.location.protocol === 'https:' && window.Api && typeof window.Api.getBaseUrl === 'function'){
+                  try {
+                    const base = String(window.Api.getBaseUrl() || '');
+                    const isSameOrigin = base === String(window.location.origin);
+                    if(isSameOrigin){
+                      throw new Error(
+                        'Exam Mode backend is not configured. This site is running on HTTPS (e.g. Netlify), but Exam Mode requires your FastAPI server. Set localStorage key g9_api_base to your deployed backend URL (https://...) or define window.__API_BASE_URL__.'
+                      );
+                    }
+                  } catch (e) {
+                    throw e;
+                  }
+                }
 
                 const startRes = await (window.Api && window.Api.apiFetch
                   ? window.Api.apiFetch('/exam-mode/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(startBody) })
