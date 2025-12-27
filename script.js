@@ -429,8 +429,8 @@
 
   // Chat persistence
   function saveChats(){ localStorage.setItem('g9_chats', JSON.stringify(state.chats)); localStorage.setItem('g9_active', state.active); try { if(window.GoogleSync && window.GoogleSync.queueChatsSave) window.GoogleSync.queueChatsSave(state.chats, state.active); } catch (e) {} }
-  function createChat(title){ const id='c_'+Date.now(); const chat={id,title:title||'New Chat',messages:[],subject:state.subject,language:state.language,created:Date.now()}; state.chats.unshift(chat); state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); }
-  function clearAll(){ state.chats=[]; state.active=null; saveChats(); renderChats(); renderActiveChat(); }
+  function createChat(title){ _maybeExitExamMode(); const id='c_'+Date.now(); const chat={id,title:title||'New Chat',messages:[],subject:state.subject,language:state.language,created:Date.now()}; state.chats.unshift(chat); state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); }
+  function clearAll(){ _maybeExitExamMode(); state.chats=[]; state.active=null; saveChats(); renderChats(); renderActiveChat(); }
 
   function formatTimestamp(ts){
     const now = new Date();
@@ -442,9 +442,43 @@
     return days + ' days ago';
   }
 
-  function renderChats(){ if(!historyList) return; historyList.innerHTML=''; state.chats.forEach(chat=>{ const item=document.createElement('div'); item.className='recent-chat-item'; item.setAttribute('role','listitem'); item.setAttribute('tabindex','0'); if(chat.id===state.active) item.classList.add('active'); const title=document.createElement('div'); title.className='recent-chat-title'; title.textContent=chat.title||'New Chat'; const preview=document.createElement('div'); preview.className='recent-chat-preview'; const lastMsg=[...chat.messages].reverse().find(m=>m.role==='user'); preview.textContent=lastMsg?lastMsg.content.slice(0,34):'No messages yet'; const time=document.createElement('div'); time.className='recent-chat-time'; time.textContent=formatTimestamp(chat.created||Date.now()); item.append(title,preview,time); item.addEventListener('click',()=>{ state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); }); item.addEventListener('keydown',(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); } }); historyList.appendChild(item); }); }
+  function renderChats(){ if(!historyList) return; historyList.innerHTML=''; state.chats.forEach(chat=>{ const item=document.createElement('div'); item.className='recent-chat-item'; item.setAttribute('role','listitem'); item.setAttribute('tabindex','0'); if(chat.id===state.active) item.classList.add('active'); const title=document.createElement('div'); title.className='recent-chat-title'; title.textContent=chat.title||'New Chat'; const preview=document.createElement('div'); preview.className='recent-chat-preview'; const lastMsg=[...chat.messages].reverse().find(m=>m.role==='user'); preview.textContent=lastMsg?lastMsg.content.slice(0,34):'No messages yet'; const time=document.createElement('div'); time.className='recent-chat-time'; time.textContent=formatTimestamp(chat.created||Date.now()); item.append(title,preview,time); item.addEventListener('click',()=>{ _maybeExitExamMode(); state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); }); item.addEventListener('keydown',(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); _maybeExitExamMode(); state.active=chat.id; saveChats(); renderChats(); renderActiveChat(); } }); historyList.appendChild(item); }); }
 
-  function renderActiveChat(){ if(!messagesEl) return; messagesEl.innerHTML=''; const chat=state.chats.find(x=>x.id===state.active); if(!chat){ if(chatTitle) chatTitle.textContent='Welcome'; if(chatSubtitle) chatSubtitle.textContent='Start a new conversation'; checkWelcomePanel(); return; } if(chatTitle) chatTitle.textContent=chat.title; if(chatSubtitle) chatSubtitle.textContent=new Date(chat.created).toLocaleString(); chat.messages.forEach(m=>appendMessage(m.role,m.content,false)); messagesEl.scrollTop=messagesEl.scrollHeight; checkWelcomePanel(); }
+  function _isExamModeEnabled(){
+    try {
+      return !!(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function _maybeExitExamMode(){
+    try {
+      if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.setEnabled){
+        if(window.ExamModeContext.getEnabled()) window.ExamModeContext.setEnabled(false);
+      }
+    } catch (e) {}
+  }
+
+  function renderActiveChat(){
+    if(!messagesEl) return;
+    // Exam Mode owns the message area; do not overwrite it with normal chat rendering.
+    if(_isExamModeEnabled()){
+      try {
+        if (welcomePanel) welcomePanel.style.display = 'none';
+        messagesEl.style.display = 'block';
+      } catch (e) {}
+      return;
+    }
+    messagesEl.innerHTML='';
+    const chat=state.chats.find(x=>x.id===state.active);
+    if(!chat){ if(chatTitle) chatTitle.textContent='Welcome'; if(chatSubtitle) chatSubtitle.textContent='Start a new conversation'; checkWelcomePanel(); return; }
+    if(chatTitle) chatTitle.textContent=chat.title;
+    if(chatSubtitle) chatSubtitle.textContent=new Date(chat.created).toLocaleString();
+    chat.messages.forEach(m=>appendMessage(m.role,m.content,false));
+    messagesEl.scrollTop=messagesEl.scrollHeight;
+    checkWelcomePanel();
+  }
 
   // improved appendMessage with enter/show animation
   function appendMessage(role,content,animate=true){
@@ -459,7 +493,8 @@
     else { m.classList.add('show'); }
     // remove enter class after animation to keep DOM clean
     setTimeout(()=>{ m.classList.remove('enter'); }, 700);
-    checkWelcomePanel();
+    // Avoid welcome-panel logic interfering with Exam Mode rendering.
+    if(!_isExamModeEnabled()) checkWelcomePanel();
   }
 
   async function generateTitle(text){
