@@ -66,6 +66,61 @@ function urlHasAny(u, parts) {
   return (parts || []).some(p => p && ul.includes(String(p).toLowerCase()));
 }
 
+function courseIdForSubject(subjectKey) {
+  const s = String(subjectKey || '').trim().toLowerCase();
+  const map = {
+    maths: 817,
+    math: 817,
+    mathematics: 817,
+    science: 819,
+    english: 823,
+    sinhala: 822,
+    history: 825,
+    geography: 826,
+    civics: 827,
+    'civic education': 827,
+    ict: 834,
+    'information & communication technology': 834,
+    health: 836,
+    'health & physical education': 836
+  };
+  return map[s] || null;
+}
+
+function findPastPapersSectionId(courseHtml) {
+  const h = String(courseHtml || '');
+  // Try to locate the section link that contains the text "Past Question Papers"
+  const re = /href\s*=\s*(["'])([^"']*course\/section\.php\?id=(\d+)[^"']*)\1/gi;
+  let m;
+  while ((m = re.exec(h))) {
+    const idx = m.index;
+    const windowText = h.slice(Math.max(0, idx - 200), idx + 300);
+    if (/Past\s+Question\s+Papers/i.test(windowText)) {
+      return parseInt(m[3], 10);
+    }
+  }
+  return null;
+}
+
+function extractResourceViewLinks(html, baseUrl) {
+  const h = String(html || '');
+  const out = [];
+  const re = /https?:\/\/e-thaksalawa\.moe\.gov\.lk\/lcms\/mod\/resource\/view\.php\?id=\d+/gi;
+  let m;
+  while ((m = re.exec(h))) {
+    out.push(m[0]);
+  }
+
+  // Also handle relative URLs
+  const rel = /href\s*=\s*(["'])(\/lcms\/mod\/resource\/view\.php\?id=\d+[^"']*)\1/gi;
+  while ((m = rel.exec(h))) {
+    const abs = absoluteUrl(baseUrl, m[2]);
+    if (abs) out.push(abs);
+  }
+
+  return Array.from(new Set(out));
+}
+
 // Very lightweight link discovery: find PDF links and page links
 function extractLinks(html) {
   const links = [];
@@ -192,7 +247,7 @@ exports.handler = async function handler(event) {
   sess.term = term;
 
   // Target seed page
-  const seed = 'https://pastpapers.wiki/grade-09-term-test-papers-past-papers-short-notes-2/';
+  const seed = 'https://e-thaksalawa.moe.gov.lk/lcms/course/index.php?categoryid=34';
 
   try {
     let seedHtml = '';
@@ -224,107 +279,67 @@ exports.handler = async function handler(event) {
       });
     }
 
-    const links = extractLinks(seedHtml)
-      .map(h => absoluteUrl(seed, h))
-      .filter(Boolean);
-
     const subjKey = normalizeSubject(subject);
     const termKey = normalizeTerm(term);
     const subjAliases = subjectAliases(subjKey);
     const tAliases = termAliases(termKey);
 
-    // Filter likely subject pages (use aliases, not just exact subject key)
-    const likelySubjectPages = links
-      .filter(u => isProbablyHtmlPage(u) && urlHasAny(u, subjAliases))
-      .slice(0, 6);
+    const courseId = courseIdForSubject(subjKey) || courseIdForSubject(subjAliases[0]);
+    if (!courseId) {
+      sess.papers_loaded = true;
+      sess.pdf_links = [];
+      return json(200, {
+        ok: false,
+        session_id: sessionId,
+        subject: sess.subject,
+        term: sess.term,
+        paper_count: 0,
+        pdf_links: [],
+        error: 'Unsupported subject for e-thaksalawa'
+      });
+    }
 
-    const fallbackTopPages = links
-      .filter(u => isProbablyHtmlPage(u))
-      .slice(0, 8);
+    const courseUrl = `https://e-thaksalawa.moe.gov.lk/lcms/course/view.php?id=${courseId}`;
+    const courseHtml = await fetchHtml(courseUrl);
+    const sectionId = findPastPapersSectionId(courseHtml);
+    if (!sectionId) {
+      sess.papers_loaded = true;
+      sess.pdf_links = [];
+      return json(200, {
+        ok: false,
+        session_id: sessionId,
+        subject: sess.subject,
+        term: sess.term,
+        paper_count: 0,
+        pdf_links: [],
+        error: 'Could not locate Past Question Papers section'
+      });
+    }
 
-    const candidatePages = likelySubjectPages.length ? likelySubjectPages : fallbackTopPages.length ? fallbackTopPages : [seed];
+    const sectionUrl = `https://e-thaksalawa.moe.gov.lk/lcms/course/section.php?id=${sectionId}`;
+    const sectionHtml = await fetchHtml(sectionUrl);
 
     const pdfCandidates = [];
+    const directPdf = extractPdfUrlsFromText(sectionHtml);
+    for (const u of directPdf) {
+      const ul = String(u || '').toLowerCase();
+      if (!isProbablyPdf(ul)) continue;
+      let score = 0;
+      if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
+      if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
+      pdfCandidates.push({ url: u, score });
+    }
 
-    const visitedPages = new Set();
-
-    async function scanPageForPdfs(pageUrl) {
-      if (!pageUrl || visitedPages.has(pageUrl)) return [];
-      visitedPages.add(pageUrl);
-
-      let html = '';
+    const resourceViews = extractResourceViewLinks(sectionHtml, sectionUrl).slice(0, 12);
+    for (const rv of resourceViews) {
+      let rvHtml = '';
       try {
-        html = await fetchHtml(pageUrl);
+        rvHtml = await fetchHtml(rv);
       } catch (e) {
-        // Skip pages that fail (403/429/timeout/etc). We'll try other pages.
-        return [];
+        continue;
       }
-
-      // Regex PDF discovery (works better on r.jina.ai output too)
-      const pdfFromText = extractPdfUrlsFromText(html);
-      for (const u of pdfFromText) {
-        const ul = String(u || '').toLowerCase();
-        if (!isProbablyPdf(ul)) continue;
-        let score = 0;
-        if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
-        if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
-        pdfCandidates.push({ url: u, score });
-      }
-
-      const pageLinks = extractLinks(html)
-        .map(h => absoluteUrl(pageUrl, h))
-        .filter(Boolean);
-
-      const discoveredChildPages = [];
-      for (const u of pageLinks) {
-        const ul = u.toLowerCase();
-
-        if (isProbablyPdf(ul)) {
-          let score = 0;
-          if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
-          if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
-          pdfCandidates.push({ url: u, score });
-          continue;
-        }
-
-        // queue one level deep pages that look relevant
-        if (isProbablyHtmlPage(u)) {
-          discoveredChildPages.push(u);
-        }
-      }
-
-      return discoveredChildPages;
-    }
-
-    // First pass: scan candidate pages
-    let childQueue = [];
-    for (const page of candidatePages) {
-      const children = await scanPageForPdfs(page);
-      childQueue.push(...children);
-    }
-
-    // Second pass: scan a limited number of child pages
-    childQueue = Array.from(new Set(childQueue)).slice(0, 6);
-    for (const page of childQueue) {
-      await scanPageForPdfs(page);
-    }
-
-    // Fallback: if still empty, scan the seed page's links directly for any PDFs
-    if (pdfCandidates.length === 0) {
-      for (const u of links) {
-        const ul = String(u || '').toLowerCase();
-        if (!isProbablyPdf(ul)) continue;
-        let score = 0;
-        if (urlHasAny(ul, subjAliases)) score += 2;
-        if (urlHasAny(ul, tAliases)) score += 1;
-        pdfCandidates.push({ url: u, score });
-      }
-    }
-
-    // Extra fallback: if still empty, regex scan the seed HTML itself
-    if (pdfCandidates.length === 0) {
-      const pdfFromSeedText = extractPdfUrlsFromText(seedHtml);
-      for (const u of pdfFromSeedText) {
+      const pdfs = extractPdfUrlsFromText(rvHtml);
+      for (const u of pdfs) {
         const ul = String(u || '').toLowerCase();
         if (!isProbablyPdf(ul)) continue;
         let score = 0;
@@ -357,8 +372,8 @@ exports.handler = async function handler(event) {
       term: sess.term,
       paper_count: sess.pdf_links.length,
       pdf_links: sess.pdf_links,
-      visited_pages: payload && payload.debug ? visitedPages.size : undefined,
-      candidate_pages: payload && payload.debug ? candidatePages.length : undefined
+      visited_pages: undefined,
+      candidate_pages: undefined
     });
   } catch (e) {
     const status = (e && (e.status || (e.response && e.response.status))) ? (e.status || e.response.status) : null;
