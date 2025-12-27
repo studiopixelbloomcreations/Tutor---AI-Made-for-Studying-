@@ -92,6 +92,35 @@
       .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: String(m.text).slice(0, 1200) }));
   }
 
+  function normalizeTerm(raw){
+    const t = String(raw || '').trim().toLowerCase();
+    if(!t) return '';
+    if(/\b(first|1st|term\s*1|term-?1|t\s*1|\b1\b)\b/i.test(t)) return 'First';
+    if(/\b(second|2nd|term\s*2|term-?2|t\s*2|\b2\b)\b/i.test(t)) return 'Second';
+    if(/\b(third|3rd|term\s*3|term-?3|t\s*3|\b3\b)\b/i.test(t)) return 'Third';
+    return '';
+  }
+
+  function normalizeSubject(raw){
+    const t = String(raw || '').trim().toLowerCase();
+    if(!t) return '';
+    if(/\b(math|maths|mathematics)\b/i.test(t)) return 'Maths';
+    if(/\b(science)\b/i.test(t)) return 'Science';
+    if(/\b(english)\b/i.test(t)) return 'English';
+    if(/\b(history)\b/i.test(t)) return 'History';
+    if(/\b(geography)\b/i.test(t)) return 'Geography';
+    if(/\b(sinhala)\b/i.test(t)) return 'Sinhala';
+    if(/\b(civics|civic)\b/i.test(t)) return 'Civics';
+    if(/\b(health)\b/i.test(t)) return 'Health';
+    return '';
+  }
+
+  function extractTermAndSubject(text){
+    const term = normalizeTerm(text);
+    const subject = normalizeSubject(text);
+    return { term, subject };
+  }
+
   function handleUserInput(text){
     const t = String(text || '').trim();
     if(!t) return;
@@ -100,9 +129,17 @@
 
     pushUser(t);
 
-    if(step === 0) answers.intent = t;
-    else if(step === 1) answers.term = t;
-    else if(step === 2) answers.subject = t;
+    if(step === 0) {
+      answers.intent = t;
+    } else if(step === 1) {
+      const ex = extractTermAndSubject(t);
+      answers.term = ex.term || t;
+      if(ex.subject && !answers.subject) answers.subject = ex.subject;
+    } else if(step === 2) {
+      const ex = extractTermAndSubject(t);
+      answers.subject = ex.subject || t;
+      if(ex.term && !answers.term) answers.term = ex.term;
+    }
 
     if(step < questions.length) step += 1;
 

@@ -68,6 +68,29 @@
       iconEl.innerHTML = mode === 'dark' ? '<i data-lucide="moon"></i>' : '<i data-lucide="sun"></i>';
       try { if(window.lucide && window.lucide.createIcons) window.lucide.createIcons(); } catch (e) {}
     }
+
+  function normalizeExamTerm(raw){
+    const t = String(raw || '').trim().toLowerCase();
+    if(!t) return '';
+    if(/\b(first|1st|term\s*1|term-?1|t\s*1|\b1\b)\b/i.test(t)) return 'First';
+    if(/\b(second|2nd|term\s*2|term-?2|t\s*2|\b2\b)\b/i.test(t)) return 'Second';
+    if(/\b(third|3rd|term\s*3|term-?3|t\s*3|\b3\b)\b/i.test(t)) return 'Third';
+    return '';
+  }
+
+  function normalizeExamSubject(raw){
+    const t = String(raw || '').trim().toLowerCase();
+    if(!t) return '';
+    if(/\b(math|maths|mathematics)\b/i.test(t)) return 'Maths';
+    if(/\b(science)\b/i.test(t)) return 'Science';
+    if(/\b(english)\b/i.test(t)) return 'English';
+    if(/\b(history)\b/i.test(t)) return 'History';
+    if(/\b(geography)\b/i.test(t)) return 'Geography';
+    if(/\b(sinhala)\b/i.test(t)) return 'Sinhala';
+    if(/\b(civics|civic)\b/i.test(t)) return 'Civics';
+    if(/\b(health)\b/i.test(t)) return 'Health';
+    return '';
+  }
     if(textEl) textEl.textContent = state.theme.charAt(0).toUpperCase()+state.theme.slice(1)+' Mode';
   }
 
@@ -559,12 +582,14 @@
             try {
               if(setupResult && setupResult.justCompleted && appendAiMessageFn){
                 const setup = getAnswersFn ? getAnswersFn() : {};
+                const normalizedSubject = normalizeExamSubject(setup.subject) || (setup.subject ? String(setup.subject).trim() : '') || state.subject;
+                const normalizedTerm = normalizeExamTerm(setup.term) || (setup.term ? String(setup.term).trim() : '') || 'Third';
                 const scanningIndex = appendAiMessageFn('Scanning past papers…');
 
                 const startBody = {
                   mode: (setup.intent || 'practice'),
-                  term: (setup.term || 'Third term'),
-                  subject: (setup.subject || state.subject),
+                  term: normalizedTerm,
+                  subject: normalizedSubject,
                   session_id: examModeSessionId || undefined
                 };
 
@@ -583,8 +608,8 @@
 
                 const fetchBody = {
                   session_id: examModeSessionId,
-                  subject: (setup.subject || state.subject),
-                  term: (setup.term || 'Third term')
+                  subject: normalizedSubject,
+                  term: normalizedTerm
                 };
                 const fetchRes = await (window.Api && window.Api.apiFetch
                   ? window.Api.apiFetch('/exam-mode/fetch-papers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fetchBody) })
@@ -598,8 +623,8 @@
 
                 const askBody = {
                   session_id: examModeSessionId,
-                  subject: (setup.subject || state.subject),
-                  term: (setup.term || 'Third term'),
+                  subject: normalizedSubject,
+                  term: normalizedTerm,
                   pdf_links: examModePdfLinks
                 };
                 const askRes = await (window.Api && window.Api.apiFetch
