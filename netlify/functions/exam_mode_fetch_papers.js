@@ -95,6 +95,12 @@ function isProbablyHtmlPage(u) {
   return true;
 }
 
+function isProbablyPdf(u) {
+  const ul = String(u || '').toLowerCase();
+  if (!ul.startsWith('http')) return false;
+  return ul.includes('.pdf');
+}
+
 async function fetchHtml(url) {
   const res = await axios.get(url, {
     timeout: 45000,
@@ -147,7 +153,11 @@ exports.handler = async function handler(event) {
       .filter(u => isProbablyHtmlPage(u) && urlHasAny(u, subjAliases))
       .slice(0, 6);
 
-    const candidatePages = likelySubjectPages.length ? likelySubjectPages : [seed];
+    const fallbackTopPages = links
+      .filter(u => isProbablyHtmlPage(u))
+      .slice(0, 8);
+
+    const candidatePages = likelySubjectPages.length ? likelySubjectPages : fallbackTopPages.length ? fallbackTopPages : [seed];
 
     const pdfCandidates = [];
 
@@ -165,9 +175,8 @@ exports.handler = async function handler(event) {
       const discoveredChildPages = [];
       for (const u of pageLinks) {
         const ul = u.toLowerCase();
-        if (!ul.includes('pastpapers.wiki')) continue;
 
-        if (ul.endsWith('.pdf')) {
+        if (isProbablyPdf(ul)) {
           let score = 0;
           if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
           if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
@@ -176,7 +185,7 @@ exports.handler = async function handler(event) {
         }
 
         // queue one level deep pages that look relevant
-        if (isProbablyHtmlPage(u) && (urlHasAny(u, subjAliases) || urlHasAny(u, tAliases))) {
+        if (isProbablyHtmlPage(u)) {
           discoveredChildPages.push(u);
         }
       }
@@ -195,6 +204,18 @@ exports.handler = async function handler(event) {
     childQueue = Array.from(new Set(childQueue)).slice(0, 6);
     for (const page of childQueue) {
       await scanPageForPdfs(page);
+    }
+
+    // Fallback: if still empty, scan the seed page's links directly for any PDFs
+    if (pdfCandidates.length === 0) {
+      for (const u of links) {
+        const ul = String(u || '').toLowerCase();
+        if (!isProbablyPdf(ul)) continue;
+        let score = 0;
+        if (urlHasAny(ul, subjAliases)) score += 2;
+        if (urlHasAny(ul, tAliases)) score += 1;
+        pdfCandidates.push({ url: u, score });
+      }
     }
 
     // Sort by score desc, then take top unique
@@ -219,7 +240,9 @@ exports.handler = async function handler(event) {
       subject: sess.subject,
       term: sess.term,
       paper_count: sess.pdf_links.length,
-      pdf_links: sess.pdf_links
+      pdf_links: sess.pdf_links,
+      visited_pages: payload && payload.debug ? visitedPages.size : undefined,
+      candidate_pages: payload && payload.debug ? candidatePages.length : undefined
     });
   } catch (e) {
     return json(500, { error: 'Failed to fetch papers' });
