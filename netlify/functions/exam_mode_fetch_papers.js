@@ -77,6 +77,17 @@ function extractLinks(html) {
   return links;
 }
 
+function extractPdfUrlsFromText(text) {
+  const t = String(text || '');
+  const out = [];
+  const re = /https?:\/\/[^\s"'<>]+?\.pdf(\?[^\s"'<>]+)?/gi;
+  let m;
+  while ((m = re.exec(t))) {
+    out.push(m[0]);
+  }
+  return out;
+}
+
 function absoluteUrl(base, href) {
   try {
     return new URL(href, base).toString();
@@ -248,6 +259,18 @@ exports.handler = async function handler(event) {
         // Skip pages that fail (403/429/timeout/etc). We'll try other pages.
         return [];
       }
+
+      // Regex PDF discovery (works better on r.jina.ai output too)
+      const pdfFromText = extractPdfUrlsFromText(html);
+      for (const u of pdfFromText) {
+        const ul = String(u || '').toLowerCase();
+        if (!isProbablyPdf(ul)) continue;
+        let score = 0;
+        if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
+        if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
+        pdfCandidates.push({ url: u, score });
+      }
+
       const pageLinks = extractLinks(html)
         .map(h => absoluteUrl(pageUrl, h))
         .filter(Boolean);
@@ -294,6 +317,19 @@ exports.handler = async function handler(event) {
         let score = 0;
         if (urlHasAny(ul, subjAliases)) score += 2;
         if (urlHasAny(ul, tAliases)) score += 1;
+        pdfCandidates.push({ url: u, score });
+      }
+    }
+
+    // Extra fallback: if still empty, regex scan the seed HTML itself
+    if (pdfCandidates.length === 0) {
+      const pdfFromSeedText = extractPdfUrlsFromText(seedHtml);
+      for (const u of pdfFromSeedText) {
+        const ul = String(u || '').toLowerCase();
+        if (!isProbablyPdf(ul)) continue;
+        let score = 0;
+        if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
+        if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
         pdfCandidates.push({ url: u, score });
       }
     }

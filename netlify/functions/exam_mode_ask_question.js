@@ -162,7 +162,7 @@ exports.handler = async function handler(event) {
       session_id: sessionId,
       question: {
         id: 'no_papers_found',
-        text: `I couldn't find matching past-paper PDFs for your selection (Subject: ${sess.subject}, Term: ${sess.term}).\n\n1) Please try a simpler subject name (e.g. "Maths", "Science", "English").\n2) And a clear term ("First", "Second", "Third").\n\nFor now, here is a practice exam-style question:\n\nWrite 3 key points you remember from the ${sess.subject} textbook chapter you studied most recently, and I will turn them into an exam question.`,
+        text: `I couldn't fetch past-paper PDFs right now for (Subject: ${sess.subject}, Term: ${sess.term}).\n\nThis usually happens because the past-paper website blocks automated server requests (HTTP 403/anti-bot), which can prevent Netlify from downloading the PDFs.\n\n✅ Fix: Upload a past-paper PDF using the Upload button (📄) and I will scan it and ask you a real question from it.\n\nFor now, here is a practice exam-style question:\n\nWrite 3 key points you remember from the ${sess.subject} textbook chapter you studied most recently, and I will turn them into an exam question.`,
         source_url: null
       },
       paper_count: pdfLinks.length
