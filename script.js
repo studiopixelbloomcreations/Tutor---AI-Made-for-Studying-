@@ -296,7 +296,7 @@
       if (badgesTab) badgesTab.classList.remove('active');
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
-      if (messagesEl) messagesEl.style.display = 'block';
+      if (messagesEl) messagesEl.style.display = 'flex';
       if (composerEl) composerEl.style.display = '';
       if (examModeRoot) examModeRoot.style.display = 'none';
       try {
@@ -466,7 +466,7 @@
     if(_isExamModeEnabled()){
       try {
         if (welcomePanel) welcomePanel.style.display = 'none';
-        messagesEl.style.display = 'block';
+        messagesEl.style.display = 'flex';
       } catch (e) {}
       return;
     }
@@ -794,7 +794,7 @@
     try {
       if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
         if (welcomePanel) welcomePanel.style.display = 'none';
-        if (messagesEl) messagesEl.style.display = 'block';
+        if (messagesEl) messagesEl.style.display = 'flex';
         return;
       }
     } catch (e) {}
