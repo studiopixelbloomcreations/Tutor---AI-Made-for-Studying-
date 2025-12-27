@@ -37,12 +37,33 @@ function normalizeSubject(subject) {
   return String(subject || '').trim().toLowerCase();
 }
 
+function subjectAliases(subjectKey) {
+  const s = String(subjectKey || '').trim().toLowerCase();
+  if (s === 'maths' || s === 'math' || s === 'mathematics') return ['maths', 'math', 'mathematics'];
+  if (s === 'science') return ['science'];
+  if (s === 'english') return ['english'];
+  return [s].filter(Boolean);
+}
+
 function normalizeTerm(term) {
   const t = String(term || '').trim().toLowerCase();
   if (t.includes('first') || t === '1' || t.includes('1st')) return 'first';
   if (t.includes('second') || t === '2' || t.includes('2nd')) return 'second';
   if (t.includes('third') || t === '3' || t.includes('3rd')) return 'third';
   return t || 'third';
+}
+
+function termAliases(termKey) {
+  const t = String(termKey || '').trim().toLowerCase();
+  if (t === 'first') return ['first', '1st', 'term1', 'term-1', 'term_1', 'term 1', '1'];
+  if (t === 'second') return ['second', '2nd', 'term2', 'term-2', 'term_2', 'term 2', '2'];
+  if (t === 'third') return ['third', '3rd', 'term3', 'term-3', 'term_3', 'term 3', '3'];
+  return [t].filter(Boolean);
+}
+
+function urlHasAny(u, parts) {
+  const ul = String(u || '').toLowerCase();
+  return (parts || []).some(p => p && ul.includes(String(p).toLowerCase()));
 }
 
 // Very lightweight link discovery: find PDF links and page links
@@ -108,6 +129,8 @@ exports.handler = async function handler(event) {
 
     const subjKey = normalizeSubject(subject);
     const termKey = normalizeTerm(term);
+    const subjAliases = subjectAliases(subjKey);
+    const tAliases = termAliases(termKey);
 
     // Filter likely subject pages
     const likelySubjectPages = links.filter(u => {
@@ -117,7 +140,7 @@ exports.handler = async function handler(event) {
 
     const candidatePages = likelySubjectPages.length ? likelySubjectPages : [seed];
 
-    const pdfLinks = new Set();
+    const pdfCandidates = [];
 
     for (const page of candidatePages) {
       const html = await fetchHtml(page);
@@ -129,16 +152,28 @@ exports.handler = async function handler(event) {
         const ul = u.toLowerCase();
         if (!ul.includes('pastpapers.wiki')) continue;
         if (!ul.endsWith('.pdf')) continue;
-        if (termKey && !(ul.includes(termKey) || ul.includes(termKey + '-term') || ul.includes(termKey + 'term'))) continue;
-        pdfLinks.add(u);
-        if (pdfLinks.size >= 6) break;
+        let score = 0;
+        if (urlHasAny(ul, subjAliases) || urlHasAny(u, subjAliases)) score += 2;
+        if (urlHasAny(ul, tAliases) || urlHasAny(u, tAliases)) score += 1;
+        pdfCandidates.push({ url: u, score });
       }
-      if (pdfLinks.size >= 6) break;
+    }
+
+    // Sort by score desc, then take top unique
+    pdfCandidates.sort((a, b) => (b.score - a.score));
+    const seen = new Set();
+    const pdfLinks = [];
+    for (const c of pdfCandidates) {
+      if (!c || !c.url) continue;
+      if (seen.has(c.url)) continue;
+      seen.add(c.url);
+      pdfLinks.push(c.url);
+      if (pdfLinks.length >= 6) break;
     }
 
     // Store links in session; question extraction is done in ask-question
     sess.papers_loaded = true;
-    sess.pdf_links = Array.from(pdfLinks);
+    sess.pdf_links = pdfLinks;
 
     return json(200, {
       ok: true,

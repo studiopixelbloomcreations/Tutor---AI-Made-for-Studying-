@@ -614,9 +614,10 @@
                   ? String(askData.question.text)
                   : 'I could not extract a question from the past papers.';
 
-                const finalText = (
-                  '✅ Papers ready. Here is your first question:\n\n' + qText
-                );
+                const isNoPapers = !!(askData && askData.question && askData.question.id === 'no_papers_found');
+                const finalText = isNoPapers
+                  ? qText
+                  : ('✅ Papers ready. Here is your first question:\n\n' + qText);
 
                 if(updateMessageFn && typeof scanningIndex === 'number') updateMessageFn(scanningIndex, finalText);
                 else if(appendAiMessageFn) appendAiMessageFn(finalText);
