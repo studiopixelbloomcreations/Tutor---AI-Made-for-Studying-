@@ -16,6 +16,23 @@ function json(statusCode, obj) {
 global.__EXAM_MODE_SESSIONS__ = global.__EXAM_MODE_SESSIONS__ || new Map();
 const SESSIONS = global.__EXAM_MODE_SESSIONS__;
 
+function ensureSession(sessionId, seed) {
+  if (!sessionId) return null;
+  const existing = SESSIONS.get(sessionId);
+  if (existing) return existing;
+  const created = {
+    created_at: Date.now(),
+    subject: (seed && seed.subject) ? String(seed.subject) : 'General',
+    term: (seed && seed.term) ? String(seed.term) : 'Third',
+    mode: (seed && seed.mode) ? String(seed.mode) : 'practice',
+    papers_loaded: false,
+    pdf_links: [],
+    questions: []
+  };
+  SESSIONS.set(sessionId, created);
+  return created;
+}
+
 function normalizeSubject(subject) {
   return String(subject || '').trim().toLowerCase();
 }
@@ -71,8 +88,8 @@ exports.handler = async function handler(event) {
   const sessionId = payload && payload.session_id ? String(payload.session_id) : '';
   if (!sessionId) return json(400, { error: 'Missing session_id' });
 
-  const sess = SESSIONS.get(sessionId);
-  if (!sess) return json(404, { error: 'Unknown session_id' });
+  const sess = ensureSession(sessionId, payload);
+  if (!sess) return json(500, { error: 'Failed to initialize session' });
 
   const subject = payload && payload.subject ? String(payload.subject) : sess.subject;
   const term = payload && payload.term ? String(payload.term) : sess.term;
@@ -128,7 +145,8 @@ exports.handler = async function handler(event) {
       session_id: sessionId,
       subject: sess.subject,
       term: sess.term,
-      paper_count: sess.pdf_links.length
+      paper_count: sess.pdf_links.length,
+      pdf_links: sess.pdf_links
     });
   } catch (e) {
     return json(500, { error: 'Failed to fetch papers' });

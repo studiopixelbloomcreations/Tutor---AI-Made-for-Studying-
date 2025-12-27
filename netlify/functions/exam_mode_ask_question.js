@@ -17,6 +17,23 @@ function json(statusCode, obj) {
 global.__EXAM_MODE_SESSIONS__ = global.__EXAM_MODE_SESSIONS__ || new Map();
 const SESSIONS = global.__EXAM_MODE_SESSIONS__;
 
+function ensureSession(sessionId, seed) {
+  if (!sessionId) return null;
+  const existing = SESSIONS.get(sessionId);
+  if (existing) return existing;
+  const created = {
+    created_at: Date.now(),
+    subject: (seed && seed.subject) ? String(seed.subject) : 'General',
+    term: (seed && seed.term) ? String(seed.term) : 'Third',
+    mode: (seed && seed.mode) ? String(seed.mode) : 'practice',
+    papers_loaded: false,
+    pdf_links: Array.isArray(seed && seed.pdf_links) ? seed.pdf_links : [],
+    questions: []
+  };
+  SESSIONS.set(sessionId, created);
+  return created;
+}
+
 function pickRandom(arr) {
   if (!Array.isArray(arr) || arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
@@ -78,8 +95,14 @@ exports.handler = async function handler(event) {
   const sessionId = payload && payload.session_id ? String(payload.session_id) : '';
   if (!sessionId) return json(400, { error: 'Missing session_id' });
 
-  const sess = SESSIONS.get(sessionId);
-  if (!sess) return json(404, { error: 'Unknown session_id' });
+  const sess = ensureSession(sessionId, payload);
+  if (!sess) return json(500, { error: 'Failed to initialize session' });
+
+  // Allow passing pdf_links directly for stateless operation
+  if (Array.isArray(payload && payload.pdf_links) && payload.pdf_links.length > 0) {
+    sess.pdf_links = payload.pdf_links;
+    sess.papers_loaded = true;
+  }
 
   const pdfLinks = Array.isArray(sess.pdf_links) ? sess.pdf_links : [];
   if (!sess.papers_loaded || pdfLinks.length === 0) {

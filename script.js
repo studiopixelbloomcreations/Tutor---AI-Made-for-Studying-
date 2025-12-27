@@ -33,6 +33,7 @@
   let examModePrevActiveChat = null;
   let examModeSessionId = null;
   let examModePapersLoaded = false;
+  let examModePdfLinks = [];
   
 
   // restore state
@@ -310,6 +311,7 @@
       if (examModeRoot) examModeRoot.style.display = 'none';
       examModeSessionId = null;
       examModePapersLoaded = false;
+      examModePdfLinks = [];
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
       if (composerEl) composerEl.style.display = '';
       if (messagesEl) messagesEl.style.display = '';
@@ -592,8 +594,14 @@
                   throw new Error('Exam Mode fetch-papers failed (HTTP ' + fetchRes.status + '): ' + getBackendErrorMessage(fetchData));
                 }
                 examModePapersLoaded = true;
+                examModePdfLinks = (fetchData && Array.isArray(fetchData.pdf_links)) ? fetchData.pdf_links : [];
 
-                const askBody = { session_id: examModeSessionId };
+                const askBody = {
+                  session_id: examModeSessionId,
+                  subject: (setup.subject || state.subject),
+                  term: (setup.term || 'Third term'),
+                  pdf_links: examModePdfLinks
+                };
                 const askRes = await (window.Api && window.Api.apiFetch
                   ? window.Api.apiFetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) })
                   : fetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) }));
