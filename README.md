@@ -2,6 +2,35 @@
 
 This repository contains the frontend and a minimal FastAPI backend used by the Grade 9 AI Tutor UI.
 
+## React + Liquid Glass UI (new)
+
+The static frontend has been migrated to a Vite + React app and uses `liquid-glass-react` for glassmorphism UI.
+
+Local dev (frontend):
+
+```powershell
+npm install
+npm run dev
+```
+
+Build (Netlify/local):
+
+```powershell
+npm run build
+```
+
+Important folders:
+- `src/` React app entry
+- `src/theme/liquidGlassConfig.js` central LiquidGlass props (blur/radius/gradient)
+- `src/components/...` modular UI pieces
+
+Netlify:
+- Build command: `npm run build`
+- Publish directory: `dist`
+
+Static pages preserved:
+- `/login.html`, `/signup.html`, `/login.css`, `/login.js`, `/signup.js` are served from `public/` so they still work after the Vite build.
+
 ## Exam Mode (new)
 
 Frontend usage:
@@ -57,12 +86,11 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-3. Serve the frontend (open `index.html` via Live Server in VS Code or a simple HTTP server):
+3. Serve the frontend:
 
 ```powershell
 # from repo root
-python -m http.server 5500
-# open http://127.0.0.1:5500 in browser
+npm run dev
 ```
 
 This repository is now prepared for production deployments. Ensure you configure `GROQ_API_KEY` and `ALLOWED_ORIGINS` in your server environment before going public.

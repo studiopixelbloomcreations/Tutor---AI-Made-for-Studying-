@@ -1,6 +1,6 @@
 [build]
-  publish = "."
-  command = ""
+  publish = "dist"
+  command = "npm run build"
 
 [functions]
   directory = "netlify/functions"
@@ -29,6 +29,11 @@
 [[redirects]]
   from = "/check_answer"
   to = "/.netlify/functions/check_answer"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
 
 # Basic headers for HTML/CSS/JS
