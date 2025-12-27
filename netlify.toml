@@ -46,6 +46,11 @@
   to = "/.netlify/functions/exam_mode_ask_question"
   status = 200
 
+[[redirects]]
+  from = "/gamification/get_badges"
+  to = "/.netlify/functions/gamification_get_badges"
+  status = 200
+
 # Basic headers for HTML/CSS/JS
 [[headers]]
   for = "/*"

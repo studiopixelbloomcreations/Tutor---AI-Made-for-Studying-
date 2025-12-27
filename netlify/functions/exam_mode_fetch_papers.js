@@ -102,13 +102,37 @@ function isProbablyPdf(u) {
 }
 
 async function fetchHtml(url) {
-  const res = await axios.get(url, {
-    timeout: 45000,
-    headers: {
-      'user-agent': 'Mozilla/5.0 (Netlify Functions) ExamMode/1.0'
+  const timeoutMs = 20000;
+  const headers = {
+    'user-agent': 'Mozilla/5.0 (Netlify Functions) ExamMode/1.0'
+  };
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        timeout: timeoutMs,
+        headers,
+        maxContentLength: 2 * 1024 * 1024,
+        maxBodyLength: 2 * 1024 * 1024,
+        validateStatus: () => true
+      });
+
+      if (!res || typeof res.status !== 'number') throw new Error('BAD_RESPONSE');
+      if (res.status >= 400) {
+        const err = new Error('HTTP_' + res.status);
+        err.status = res.status;
+        err.url = url;
+        err.bodySnippet = typeof res.data === 'string' ? res.data.slice(0, 300) : null;
+        throw err;
+      }
+
+      return String(res.data || '');
+    } catch (e) {
+      lastErr = e;
     }
-  });
-  return String(res.data || '');
+  }
+  throw lastErr || new Error('FETCH_FAILED');
 }
 
 exports.handler = async function handler(event) {
@@ -245,6 +269,19 @@ exports.handler = async function handler(event) {
       candidate_pages: payload && payload.debug ? candidatePages.length : undefined
     });
   } catch (e) {
-    return json(500, { error: 'Failed to fetch papers' });
+    const status = (e && (e.status || (e.response && e.response.status))) ? (e.status || e.response.status) : null;
+    const code = (e && e.code) ? String(e.code) : null;
+    const msg = (e && e.message) ? String(e.message) : 'Failed to fetch papers';
+    const url = (e && e.url) ? String(e.url) : null;
+    const bodySnippet = (e && e.bodySnippet) ? String(e.bodySnippet) : null;
+
+    return json(500, {
+      error: 'Failed to fetch papers',
+      detail: msg,
+      status,
+      code,
+      url,
+      bodySnippet
+    });
   }
 };
