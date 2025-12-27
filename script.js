@@ -80,6 +80,12 @@
     return '';
   }
 
+  function stripAwardPointsLine(text){
+    const t = String(text || '');
+    // Remove the required scoring line from display (it should still exist in backend responses)
+    return t.replace(/\n?\s*AWARD_POINTS\s*:\s*\d+\s*$/i, '').trim();
+  }
+
   function normalizeExamSubject(raw){
     const t = String(raw || '').trim().toLowerCase();
     if(!t) return '';
@@ -694,12 +700,17 @@
               ? window.Api.apiFetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(reqBody) })
               : fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(reqBody) }));
 
-            const data = await res.json();
-            const answer = (data && data.answer) ? data.answer : 'No answer';
+            const data = await safeReadJson(res);
+            if(!res.ok){
+              throw new Error('AI request failed (HTTP ' + res.status + '): ' + getBackendErrorMessage(data));
+            }
+
+            const answerRaw = (data && data.answer) ? String(data.answer) : '';
+            const answer = answerRaw ? stripAwardPointsLine(answerRaw) : '⚠️ AI returned an empty response.';
             if(updateMessageFn && typeof thinkingIndex === 'number') updateMessageFn(thinkingIndex, answer);
             else if(appendAiMessageFn) appendAiMessageFn(answer);
           } catch (e) {
-            const msg = '⚠️ Message failed to send. Please check your connection or try again later.';
+            const msg = (e && e.message) ? ('⚠️ ' + String(e.message)) : '⚠️ Message failed to send. Please check your connection or try again later.';
             if(updateMessageFn && typeof thinkingIndex === 'number') updateMessageFn(thinkingIndex, msg);
             else if(appendAiMessageFn) appendAiMessageFn(msg);
             try { toast(msg,{duration:5000}); } catch (e2) {}
@@ -733,12 +744,17 @@
     try{ 
       const reqBody = {subject:state.subject,language:state.language,student_question:text,history,title:chat.title,email:'guest@student.com'};
       const res= await (window.Api && window.Api.apiFetch ? window.Api.apiFetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)}) : fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)}));
-      const data=await res.json();
+      const data=await safeReadJson(res);
+      if(!res.ok){
+        throw new Error('AI request failed (HTTP ' + res.status + '): ' + getBackendErrorMessage(data));
+      }
       const lastAi=[...chat.messages].reverse().find(m=>m.role==='ai');
-      if(lastAi) lastAi.content=data.answer||'No answer'; emitProgressEvent('g9:ai_response', { chatId: state.active, subject: state.subject, text: data.answer });
+      const answerRaw = (data && data.answer) ? String(data.answer) : '';
+      const answer = answerRaw ? stripAwardPointsLine(answerRaw) : '⚠️ AI returned an empty response.';
+      if(lastAi) lastAi.content=answer; emitProgressEvent('g9:ai_response', { chatId: state.active, subject: state.subject, text: answer });
       renderActiveChat(); saveChats(); 
     }
-    catch(e){ const msg='⚠️ Message failed to send. Please check your connection or try again later.'; const lastAi=[...chat.messages].reverse().find(m=>m.role==='ai'); if(lastAi) lastAi.content=msg; renderActiveChat(); saveChats(); toast(msg,{duration:5000}); }
+    catch(e){ const msg=(e && e.message) ? ('⚠️ ' + String(e.message)) : '⚠️ Message failed to send. Please check your connection or try again later.'; const lastAi=[...chat.messages].reverse().find(m=>m.role==='ai'); if(lastAi) lastAi.content=msg; renderActiveChat(); saveChats(); toast(msg,{duration:5000}); }
   }
 
   // Speech

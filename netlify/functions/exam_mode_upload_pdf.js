@@ -54,6 +54,37 @@ function extractNumberedQuestions(text) {
     });
 }
 
+function cleanPdfText(text) {
+  let t = String(text || '');
+  try { t = t.normalize('NFKC'); } catch (e) {}
+
+  t = t
+    .replace(/\ufb00/g, 'ff')
+    .replace(/\ufb01/g, 'fi')
+    .replace(/\ufb02/g, 'fl')
+    .replace(/\ufb03/g, 'ffi')
+    .replace(/\ufb04/g, 'ffl');
+
+  t = t
+    .replace(/\uFFFD/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  t = t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+  t = t.replace(/\r/g, '\n');
+  t = t.replace(/\n{3,}/g, '\n\n');
+  t = t.replace(/[ \t]{2,}/g, ' ');
+  return t;
+}
+
+function preprocessForQuestionParsing(text) {
+  let t = String(text || '');
+  t = t.replace(/([A-Za-z])\-\n([A-Za-z])/g, '$1$2');
+  t = t.replace(/([^\n\.!\?\:;])\n(?=[^\n])/g, '$1 ');
+  t = t.replace(/\n{3,}/g, '\n\n');
+  t = t.replace(/[ \t]{2,}/g, ' ');
+  return t;
+}
+
 exports.handler = async function handler(event) {
   if (event.httpMethod === "OPTIONS") return json(200, { ok: true });
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -77,7 +108,8 @@ exports.handler = async function handler(event) {
   try {
     const buf = Buffer.from(pdfBase64, 'base64');
     const parsed = await pdfParse(buf);
-    const text = String((parsed && parsed.text) || '');
+    const cleaned = cleanPdfText(String((parsed && parsed.text) || ''));
+    const text = preprocessForQuestionParsing(cleaned);
 
     const qs = extractNumberedQuestions(text)
       .slice(0, 60)

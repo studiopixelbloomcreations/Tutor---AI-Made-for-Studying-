@@ -81,6 +81,49 @@ function extractNumberedQuestions(text) {
     });
 }
 
+function cleanPdfText(text) {
+  let t = String(text || '');
+  try { t = t.normalize('NFKC'); } catch (e) {}
+
+  // Replace common ligatures
+  t = t
+    .replace(/\ufb00/g, 'ff')
+    .replace(/\ufb01/g, 'fi')
+    .replace(/\ufb02/g, 'fl')
+    .replace(/\ufb03/g, 'ffi')
+    .replace(/\ufb04/g, 'ffl');
+
+  // Remove common "replacement" / unknown glyph markers and zero-width chars
+  t = t
+    .replace(/\uFFFD/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  // Drop other control chars (keep newlines/tabs)
+  t = t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+
+  // Normalize whitespace
+  t = t.replace(/\r/g, '\n');
+  t = t.replace(/\n{3,}/g, '\n\n');
+  t = t.replace(/[ \t]{2,}/g, ' ');
+  return t;
+}
+
+function preprocessForQuestionParsing(text) {
+  let t = String(text || '');
+
+  // Fix hyphenation across line breaks: "alge-\nbra" -> "algebra"
+  t = t.replace(/([A-Za-z])\-\n([A-Za-z])/g, '$1$2');
+
+  // Join wrapped lines inside a paragraph into spaces (keep paragraph breaks)
+  // If a line ends without strong punctuation, treat the next line as continuation.
+  t = t.replace(/([^\n\.!\?\:;])\n(?=[^\n])/g, '$1 ');
+
+  // Re-normalize newlines and spaces after joining
+  t = t.replace(/\n{3,}/g, '\n\n');
+  t = t.replace(/[ \t]{2,}/g, ' ');
+  return t;
+}
+
 async function fetchPdfText(url) {
   const headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -118,7 +161,8 @@ async function fetchPdfText(url) {
 
       const buf = Buffer.from(res.data);
       const data = await pdfParse(buf);
-      return String((data && data.text) || '');
+      const cleaned = cleanPdfText(String((data && data.text) || ''));
+      return preprocessForQuestionParsing(cleaned);
     } catch (e) {
       lastErr = e;
     }
