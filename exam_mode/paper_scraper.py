@@ -1,11 +1,13 @@
 from __future__ import annotations
+import io
 import re
 from typing import Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
 
-BASE_URL = "https://paperswiki.com"
+BASE_URL = "https://pastpapers.wiki"
+GRADE9_START_URL = "https://pastpapers.wiki/grade-09-term-test-papers-past-papers-short-notes-2/"
 
 
 class ScrapeError(Exception):
@@ -31,25 +33,9 @@ def _normalize_term(term: str) -> str:
 
 
 def _find_grade9_subject_page(subject: str) -> Optional[str]:
-    # Strategy: navigate from homepage to Grade 9, then find subject link.
-    # This is heuristic; adjust selectors/paths to match actual site structure.
-    home = _get(BASE_URL)
-
-    # Find Grade 9 link
-    grade9_link = None
-    for a in home.select('a[href]'):
-        text = (a.get_text() or '').strip().lower()
-        href = a['href']
-        if 'grade 9' in text or 'grade9' in href.lower():
-            grade9_link = href
-            break
-    if not grade9_link:
-        return None
-    if grade9_link.startswith('/'):
-        grade9_link = BASE_URL + grade9_link
-
-    # Find subject link on Grade 9 page
-    g9 = _get(grade9_link)
+    # Strategy: start from the known Grade 9 term-test page and find a subject link.
+    # This is heuristic and may need selector tweaks if the site structure changes.
+    g9 = _get(GRADE9_START_URL)
     subject_key = (subject or '').strip().lower()
     subj_link = None
     for a in g9.select('a[href]'):
@@ -123,9 +109,104 @@ def _parse_question_blocks(soup: BeautifulSoup) -> List[str]:
     return result
 
 
+def _extract_pdf_links(soup: BeautifulSoup) -> List[str]:
+    links: List[str] = []
+    for a in soup.select('a[href]'):
+        href = (a.get('href') or '').strip()
+        if not href:
+            continue
+        hlow = href.lower()
+        if '.pdf' in hlow:
+            if href.startswith('/'):
+                href = BASE_URL + href
+            links.append(href)
+    # De-duplicate while preserving order
+    clean: List[str] = []
+    seen = set()
+    for u in links:
+        if u not in seen:
+            seen.add(u)
+            clean.append(u)
+    return clean
+
+
+def _download_pdf_bytes(url: str) -> bytes:
+    headers = {
+        "User-Agent": "TutorAI-ExamMode/1.0 (+https://example.com)"
+    }
+    r = requests.get(url, headers=headers, timeout=35)
+    if r.status_code != 200:
+        raise ScrapeError(f"HTTP {r.status_code} for {url}")
+    ctype = (r.headers.get('Content-Type') or '').lower()
+    if 'pdf' not in ctype and not url.lower().endswith('.pdf'):
+        # Some servers don't set content-type correctly, so we only hard-fail
+        # when it doesn't look like a PDF URL.
+        raise ScrapeError(f"Not a PDF response for {url} (Content-Type={ctype})")
+    return r.content
+
+
+def _extract_text_from_pdf(pdf_bytes: bytes) -> str:
+    try:
+        from pypdf import PdfReader  # type: ignore
+    except Exception as e:
+        raise ScrapeError("pypdf is not available; install requirements") from e
+
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))  # type: ignore[name-defined]
+    except Exception as e:
+        raise ScrapeError("Failed to open PDF") from e
+
+    chunks: List[str] = []
+    for p in reader.pages[:25]:
+        try:
+            t = p.extract_text() or ''
+        except Exception:
+            t = ''
+        if t:
+            chunks.append(t)
+    return "\n".join(chunks)
+
+
+def _parse_questions_from_text(text: str) -> List[str]:
+    # Normalize whitespace but keep line breaks for better parsing.
+    raw_lines = [ln.strip() for ln in (text or '').splitlines()]
+    raw_lines = [ln for ln in raw_lines if ln]
+    joined = "\n".join(raw_lines)
+
+    # Split at common question markers.
+    # Examples: "1.", "1)", "Q1", "Question 1"
+    pattern = re.compile(
+        r"(?:^|\n)\s*(?:Q\s*\d+|Question\s*\d+|\d{1,2}\s*[\).]|\d{1,2}\s*\.)\s+",
+        flags=re.IGNORECASE,
+    )
+
+    parts = pattern.split(joined)
+    # The split removes markers; the first chunk is usually preamble.
+    candidates = [p.strip() for p in parts[1:] if p and p.strip()]
+
+    questions: List[str] = []
+    for c in candidates:
+        # Stop at very long chunks; keep it question-like.
+        c = re.sub(r"\s+", " ", c).strip()
+        if len(c) < 20:
+            continue
+        if len(c) > 900:
+            c = c[:900].rsplit(' ', 1)[0] + '…'
+        questions.append(c)
+
+    # De-dup preserve order
+    seen = set()
+    out: List[str] = []
+    for q in questions:
+        if q not in seen:
+            seen.add(q)
+            out.append(q)
+    return out
+
+
 def scrape_papers_dynamic(subject: str, term: str) -> Dict[int, List[dict]]:
     """
-    Scrape paperswiki.com for Grade 9 -> subject -> term.
+    Scrape pastpapers.wiki for Grade 9 -> subject -> term.
     Returns: { year: [ {id, year, subject, term, text, type, choices, answer}, ...] }
     """
     subj_page = _find_grade9_subject_page(subject)
@@ -148,7 +229,23 @@ def scrape_papers_dynamic(subject: str, term: str) -> Dict[int, List[dict]]:
         title_text = page.title.get_text() if page.title else ''
         year = _extract_year_from_title(title_text) or _extract_year_from_title(link) or 0
 
-        questions_text = _parse_question_blocks(page)
+        # Prefer PDFs (real scanning). If no PDFs exist, fallback to HTML parsing.
+        questions_text: List[str] = []
+        pdf_links = _extract_pdf_links(page)
+        if pdf_links:
+            # Download and parse a few PDFs to avoid long delays.
+            for pdf_url in pdf_links[:3]:
+                try:
+                    pdf_bytes = _download_pdf_bytes(pdf_url)
+                    pdf_text = _extract_text_from_pdf(pdf_bytes)
+                    parsed = _parse_questions_from_text(pdf_text)
+                    if parsed:
+                        questions_text.extend(parsed)
+                except Exception:
+                    continue
+
+        if not questions_text:
+            questions_text = _parse_question_blocks(page)
         if not questions_text:
             continue
 

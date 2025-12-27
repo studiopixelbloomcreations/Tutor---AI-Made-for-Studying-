@@ -31,6 +31,8 @@
   const examModeToggleMount = document.getElementById('examModeToggleMount');
   const examModeRoot = document.getElementById('examModeRoot');
   let examModePrevActiveChat = null;
+  let examModeSessionId = null;
+  let examModePapersLoaded = false;
   
 
   // restore state
@@ -294,16 +296,19 @@
       if (badgesTab) badgesTab.classList.remove('active');
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
-      if (messagesEl) messagesEl.style.display = 'none';
+      if (messagesEl) messagesEl.style.display = 'flex';
       if (composerEl) composerEl.style.display = 'flex';
-      if (examModeRoot) examModeRoot.style.display = 'flex';
+      if (examModeRoot) examModeRoot.style.display = 'none';
       try {
         examModePrevActiveChat = state.active;
+        examModePapersLoaded = false;
         if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset();
         if(window.ExamModeUI && window.ExamModeUI.renderSetupQuestions) window.ExamModeUI.renderSetupQuestions();
       } catch (e) {}
     } else {
       if (examModeRoot) examModeRoot.style.display = 'none';
+      examModeSessionId = null;
+      examModePapersLoaded = false;
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
       if (composerEl) composerEl.style.display = 'flex';
       if (messagesEl) messagesEl.style.display = 'flex';
@@ -460,11 +465,73 @@
           const getAnswersFn = (typeof window.ExamModeUI.getAnswers === 'function') ? window.ExamModeUI.getAnswers : null;
 
           if(!isSetupCompleteFn || !isSetupCompleteFn()){
-            if(handleUserInputFn) handleUserInputFn(text);
+            let setupResult = null;
+            if(handleUserInputFn) setupResult = handleUserInputFn(text);
             else {
               console.error('ExamModeUI.handleUserInput missing');
               try { toast('Exam Mode UI is not ready. Open index.html and hard refresh (Ctrl+F5).',{duration:8000}); } catch (e) {}
             }
+
+            // If the user just finished the 3 setup questions, fetch a random past-paper question.
+            try {
+              if(setupResult && setupResult.justCompleted && appendAiMessageFn){
+                const setup = getAnswersFn ? getAnswersFn() : {};
+                const scanningIndex = appendAiMessageFn('Scanning past papers…');
+
+                const startBody = {
+                  mode: (setup.intent || 'practice'),
+                  term: (setup.term || 'Third term'),
+                  subject: (setup.subject || state.subject),
+                  session_id: examModeSessionId || undefined
+                };
+
+                const startRes = await (window.Api && window.Api.apiFetch
+                  ? window.Api.apiFetch('/exam-mode/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(startBody) })
+                  : fetch('/exam-mode/start', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(startBody) }));
+                const startData = await startRes.json();
+                if(startData && startData.session_id) examModeSessionId = startData.session_id;
+
+                const fetchBody = {
+                  session_id: examModeSessionId,
+                  subject: (setup.subject || state.subject),
+                  term: (setup.term || 'Third term')
+                };
+                const fetchRes = await (window.Api && window.Api.apiFetch
+                  ? window.Api.apiFetch('/exam-mode/fetch-papers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fetchBody) })
+                  : fetch('/exam-mode/fetch-papers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fetchBody) }));
+                const fetchData = await fetchRes.json();
+                if(fetchRes.ok) examModePapersLoaded = true;
+
+                const askBody = { session_id: examModeSessionId };
+                const askRes = await (window.Api && window.Api.apiFetch
+                  ? window.Api.apiFetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) })
+                  : fetch('/exam-mode/ask-question', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(askBody) }));
+                const askData = await askRes.json();
+
+                const qText = (askData && askData.question && askData.question.text)
+                  ? String(askData.question.text)
+                  : 'I could not extract a question from the past papers.';
+
+                const finalText = (
+                  '✅ Papers ready. Here is your first question:\n\n' + qText
+                );
+
+                if(updateMessageFn && typeof scanningIndex === 'number') updateMessageFn(scanningIndex, finalText);
+                else if(appendAiMessageFn) appendAiMessageFn(finalText);
+
+                if(fetchData && fetchData.total_questions === 0){
+                  try { toast('No questions found for that subject/term — using fallback questions.',{duration:6000}); } catch (e) {}
+                }
+              }
+            } catch (e) {
+              console.error('Exam Mode paper scan failed:', e);
+              try {
+                if(window.ExamModeUI && typeof window.ExamModeUI.appendAiMessage === 'function'){
+                  window.ExamModeUI.appendAiMessage('⚠️ I could not scan past papers right now. Please try again or choose a different subject/term.');
+                }
+              } catch (e2) {}
+            }
+
             return;
           }
 

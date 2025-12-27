@@ -11,7 +11,7 @@
   let convo = [];
 
   function ensureRoot(){
-    rootEl = document.getElementById('examModeRoot') || document.getElementById('messages');
+    rootEl = document.getElementById('messages');
     return rootEl;
   }
 
@@ -96,6 +96,8 @@
     const t = String(text || '').trim();
     if(!t) return;
 
+    const wasComplete = isSetupComplete();
+
     pushUser(t);
 
     if(step === 0) answers.intent = t;
@@ -107,10 +109,13 @@
     if(step < questions.length){
       pushAi(questions[step]);
     } else {
-      pushAi('Great — you\'re all set. Ask me anything and I\'ll coach you in Exam Mode.');
+      pushAi('Okay — give me a moment to scan past papers for your term and subject.');
     }
 
     render();
+
+    const nowComplete = isSetupComplete();
+    return { wasComplete, nowComplete, justCompleted: (!wasComplete && nowComplete) };
   }
 
   function reset(){

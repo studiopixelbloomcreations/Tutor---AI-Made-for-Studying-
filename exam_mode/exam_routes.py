@@ -21,7 +21,7 @@ def start_exam(req: StartExamRequest):
 @router.post("/fetch-papers", response_model=FetchPapersResponse)
 def fetch_papers(req: FetchPapersRequest):
     try:
-        papers = exam_service.fetch_papers(req.session_id)
+        papers = exam_service.fetch_papers(req.session_id, subject=req.subject, term=req.term)
     except KeyError:
         raise HTTPException(status_code=404, detail="Invalid session")
 

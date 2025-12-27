@@ -41,8 +41,12 @@ class ExamService:
         return self.sessions[session_id]
 
     # Data loading
-    def fetch_papers(self, session_id: str) -> Dict[int, List[dict]]:
+    def fetch_papers(self, session_id: str, subject: Optional[str] = None, term: Optional[str] = None) -> Dict[int, List[dict]]:
         state = self.get_session(session_id)
+        if subject:
+            state.subject = subject
+        if term:
+            state.term = term
         papers = scrape_papers(state.subject, state.term)
         state.papers = papers
         # reset tracking when (re)loading papers
