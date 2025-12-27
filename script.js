@@ -296,8 +296,8 @@
       if (badgesTab) badgesTab.classList.remove('active');
       if (badgesContent) badgesContent.style.display = 'none';
       if (welcomePanel) welcomePanel.style.display = 'none';
-      if (messagesEl) messagesEl.style.display = 'flex';
-      if (composerEl) composerEl.style.display = 'flex';
+      if (messagesEl) messagesEl.style.display = '';
+      if (composerEl) composerEl.style.display = '';
       if (examModeRoot) examModeRoot.style.display = 'none';
       try {
         examModePrevActiveChat = state.active;
@@ -310,8 +310,8 @@
       examModeSessionId = null;
       examModePapersLoaded = false;
       try { if(window.ExamModeUI && window.ExamModeUI.reset) window.ExamModeUI.reset(); } catch (e) {}
-      if (composerEl) composerEl.style.display = 'flex';
-      if (messagesEl) messagesEl.style.display = 'flex';
+      if (composerEl) composerEl.style.display = '';
+      if (messagesEl) messagesEl.style.display = '';
       if (badgesTab && badgesTab.classList.contains('active')){
         if (badgesContent) badgesContent.style.display = 'flex';
       } else {
@@ -332,6 +332,21 @@
       }
       if(window.ExamModeContext && window.ExamModeContext.subscribe){
         window.ExamModeContext.subscribe(setExamModeUI);
+      }
+    } catch (e) {}
+
+    // Backup: if subscribe wiring ever fails, listen to the global event too.
+    try {
+      window.addEventListener('g9:exam_mode_changed', (ev)=>{
+        const enabled = !!(ev && ev.detail && ev.detail.enabled);
+        setExamModeUI(enabled);
+      });
+    } catch (e) {}
+
+    // Apply current state immediately as a safety net.
+    try {
+      if(window.ExamModeContext && window.ExamModeContext.getEnabled){
+        setExamModeUI(!!window.ExamModeContext.getEnabled());
       }
     } catch (e) {}
 
@@ -738,7 +753,7 @@
     try {
       if(window.ExamModeContext && window.ExamModeContext.getEnabled && window.ExamModeContext.getEnabled()){
         if (welcomePanel) welcomePanel.style.display = 'none';
-        if (messagesEl) messagesEl.style.display = 'flex';
+        if (messagesEl) messagesEl.style.display = '';
         return;
       }
     } catch (e) {}
@@ -748,7 +763,7 @@
         messagesEl.style.display = 'none';
       } else {
         welcomePanel.style.display = 'none';
-        messagesEl.style.display = 'flex';
+        messagesEl.style.display = '';
       }
     }
   }
