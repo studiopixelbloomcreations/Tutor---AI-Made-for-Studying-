@@ -55,6 +55,29 @@ function pickRandomDifferent(arr, notEqualTo) {
   return pickRandom(pool);
 }
 
+function shuffle(arr) {
+  const a = Array.isArray(arr) ? arr.slice() : [];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+  }
+  return a;
+}
+
+function extractYearFromUrl(u) {
+  const s = String(u || '');
+  const m = s.match(/\b(19\d{2}|20\d{2})\b/);
+  return m ? m[1] : null;
+}
+
+function buildPaperLabel(url) {
+  const year = extractYearFromUrl(url);
+  if (year) return `Paper extracted from year ${year}`;
+  return 'Paper extracted from past paper';
+}
+
 function extractNumberedQuestions(text) {
   const t = String(text || '').replace(/\r/g, '');
   // Heuristic: split on lines that start with digits + dot/)
@@ -228,35 +251,56 @@ exports.handler = async function handler(event) {
   }
 
   try {
-    // Pick ONE paper each time, but randomize across all papers for the chosen term.
-    // Also avoid repeating the same paper consecutively.
-    const pickedPdf = pickRandomDifferent(pdfLinks, sess.last_pdf_url);
-    sess.last_pdf_url = pickedPdf;
+    // Try multiple papers in random order until we successfully extract at least one question.
+    // This avoids returning fallback just because one PDF has poor text extraction.
+    const attempts = Math.min(8, pdfLinks.length);
+    const ordered = shuffle(pdfLinks);
 
-    const text = await fetchPdfText(pickedPdf);
-    const qs = extractNumberedQuestions(text)
-      .filter(q => q && q.text && q.text.length >= 20 && q.text.length <= 900);
-
-    const questions = qs.slice(0, 80).map(q => ({
-      id: `${pickedPdf}#${q.number}`,
-      text: q.text,
-      source_url: pickedPdf
-    }));
-
-    // Fallback: if none parsed, return a generic question
-    if (questions.length === 0) {
-      return json(200, {
-        session_id: sessionId,
-        question: {
-          id: 'fallback',
-          text: `I couldn't extract a numbered question from the PDFs.\n\nTell me the subject topic you want (from ${sess.subject}) and I will create an exam-style question for you.`,
-          source_url: null
-        }
-      });
+    // Ensure first attempt avoids repeating the last used paper when possible.
+    if (sess.last_pdf_url && ordered.length > 1 && ordered[0] === sess.last_pdf_url) {
+      const swapIdx = ordered.findIndex(u => u && u !== sess.last_pdf_url);
+      if (swapIdx > 0) {
+        const tmp = ordered[0];
+        ordered[0] = ordered[swapIdx];
+        ordered[swapIdx] = tmp;
+      }
     }
 
-    const picked = pickRandom(questions);
-    return json(200, { session_id: sessionId, question: picked });
+    let lastErr = null;
+    for (const pickedPdf of ordered.slice(0, attempts)) {
+      try {
+        const text = await fetchPdfText(pickedPdf);
+        const qs = extractNumberedQuestions(text)
+          .filter(q => q && q.text && q.text.length >= 20 && q.text.length <= 900);
+
+        const questions = qs.slice(0, 80).map(q => ({
+          id: `${pickedPdf}#${q.number}`,
+          text: q.text,
+          source_url: pickedPdf
+        }));
+
+        if (questions.length === 0) continue;
+
+        sess.last_pdf_url = pickedPdf;
+        const picked = pickRandom(questions);
+        const label = buildPaperLabel(pickedPdf);
+        picked.text = `${label}\n\n${picked.text}`;
+        return json(200, { session_id: sessionId, question: picked });
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    // Fallback: if none parsed, return a generic question
+    return json(200, {
+      session_id: sessionId,
+      question: {
+        id: 'fallback',
+        text: `I couldn't extract a numbered question from the PDFs.\n\nTell me the subject topic you want (from ${sess.subject}) and I will create an exam-style question for you.`,
+        source_url: null
+      },
+      detail: lastErr && lastErr.message ? String(lastErr.message) : undefined
+    });
   } catch (e) {
     return json(500, { error: 'Failed to extract question from PDFs' });
   }
