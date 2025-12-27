@@ -184,7 +184,35 @@ exports.handler = async function handler(event) {
   const seed = 'https://pastpapers.wiki/grade-09-term-test-papers-past-papers-short-notes-2/';
 
   try {
-    const seedHtml = await fetchHtml(seed);
+    let seedHtml = '';
+    try {
+      seedHtml = await fetchHtml(seed);
+    } catch (e) {
+      const status = (e && (e.status || (e.response && e.response.status))) ? (e.status || e.response.status) : null;
+      const code = (e && e.code) ? String(e.code) : null;
+      const msg = (e && e.message) ? String(e.message) : 'Failed to fetch seed page';
+      const url = (e && e.url) ? String(e.url) : seed;
+      const bodySnippet = (e && e.bodySnippet) ? String(e.bodySnippet) : null;
+
+      // Graceful fallback: don't crash Exam Mode; allow frontend to proceed to ask-question fallback.
+      sess.papers_loaded = true;
+      sess.pdf_links = [];
+      return json(200, {
+        ok: false,
+        session_id: sessionId,
+        subject: sess.subject,
+        term: sess.term,
+        paper_count: 0,
+        pdf_links: [],
+        error: 'Failed to fetch papers',
+        detail: msg,
+        status,
+        code,
+        url,
+        bodySnippet
+      });
+    }
+
     const links = extractLinks(seedHtml)
       .map(h => absoluteUrl(seed, h))
       .filter(Boolean);
@@ -213,7 +241,13 @@ exports.handler = async function handler(event) {
       if (!pageUrl || visitedPages.has(pageUrl)) return [];
       visitedPages.add(pageUrl);
 
-      const html = await fetchHtml(pageUrl);
+      let html = '';
+      try {
+        html = await fetchHtml(pageUrl);
+      } catch (e) {
+        // Skip pages that fail (403/429/timeout/etc). We'll try other pages.
+        return [];
+      }
       const pageLinks = extractLinks(html)
         .map(h => absoluteUrl(pageUrl, h))
         .filter(Boolean);
@@ -297,7 +331,16 @@ exports.handler = async function handler(event) {
     const url = (e && e.url) ? String(e.url) : null;
     const bodySnippet = (e && e.bodySnippet) ? String(e.bodySnippet) : null;
 
-    return json(500, {
+    // Graceful fallback: don't hard-fail Exam Mode.
+    sess.papers_loaded = true;
+    sess.pdf_links = [];
+    return json(200, {
+      ok: false,
+      session_id: sessionId,
+      subject: sess.subject,
+      term: sess.term,
+      paper_count: 0,
+      pdf_links: [],
       error: 'Failed to fetch papers',
       detail: msg,
       status,
